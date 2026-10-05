@@ -1,0 +1,44 @@
+[tools]
+uv = "0.12.17"
+
+[tasks.setup]
+description = "install the locked development environment"
+run = "uv sync --locked"
+
+[tasks.format]
+description = "apply safe lint fixes and format Python at 79 columns"
+run = ["uv run --locked ruff check --fix .", "uv run --locked ruff format ."]
+
+[tasks.check]
+description = "check lint, formatting, and types"
+run = [
+    "uv run --locked ruff check .",
+    "uv run --locked ruff format --check .",
+    "uv run --locked basedpyright",
+    "uv run --locked mypy",
+    "uv run --locked pyright",
+]
+
+[tasks.test]
+description = "run tests with branch coverage"
+run = "uv run --locked python -m pytest --cov"
+
+[tasks.fuzz]
+description = "run property tests with a larger Hypothesis budget"
+run = "uv run --locked python -m pytest --hypothesis-profile=fuzz"
+
+[tasks.bench]
+description = "benchmark a supplied expression with pyperf"
+run = "uv run --locked python -m pyperf timeit"
+
+[tasks.profile]
+description = "profile a supplied script or module"
+run = "uv run --locked pyinstrument"
+
+[tasks.build]
+description = "build a wheel and source distribution"
+run = "uv build --no-sources"
+
+[tasks.outdated]
+description = "report installed packages with newer releases"
+run = "uv pip list --outdated --exclude-editable"
