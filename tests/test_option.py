@@ -1,6 +1,6 @@
 from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, replace
-from typing import assert_type
+from typing import Literal, assert_type
 
 import pytest
 from hypothesis import given
@@ -15,7 +15,7 @@ def test_present_falsey_values(value: object) -> None:
     assert option.value is value
     assert option.unwrap() is value
     assert option.expect("missing") is value
-    assert option.is_some() and not option.is_none()
+    assert option.is_some and not option.is_none
     assert bool(option)
     assert list(option) == [value]
     assert list(option.iter()) == [value]
@@ -23,7 +23,7 @@ def test_present_falsey_values(value: object) -> None:
 
 def test_absence_and_python_conversion() -> None:
     assert not Nothing
-    assert Nothing.is_none() and not Nothing.is_some()
+    assert Nothing.is_none and not Nothing.is_some
     assert list(Nothing) == []
     assert list(Nothing.iter()) == []
     assert from_optional(None) is Nothing
@@ -203,10 +203,20 @@ def test_public_types() -> None:
         assert eager == lazy
         assert pair == (Some((option.unwrap(), "two")) if option else Nothing)
         assert_type(option.to_optional(), int | None)
+        if option.is_some is True:
+            assert_type(option, Some[int])
+            assert_type(option.value, int)
+        if option.is_none is False:
+            assert_type(option, Some[int])
+            assert_type(option.value, int)
 
     use(Some(1))
     use(Nothing)
     assert_type(Some(1).value, int)
+    assert_type(Some(1).is_some, Literal[True])
+    assert_type(Nothing.is_some, Literal[False])
+    assert_type(Some(None).is_none, Literal[False])
+    assert_type(Nothing.is_none, Literal[True])
     assert_type(Some(1).map(str), Some[str])
     assert_type(Some(1).unwrap_or(None), int)
     assert_type(Some(1).or_(Some("default")), Some[int])

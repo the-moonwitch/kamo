@@ -15,7 +15,7 @@ def half_even(value: int) -> Option[int]:
 assert Some(8).and_then(half_even).map(str).unwrap() == "4"
 assert Some(3).and_then(half_even) is Nothing
 assert Nothing.map(str) is Nothing
-assert Some(None).is_some()
+assert Some(None).is_some
 assert from_optional(None) is Nothing
 assert list(Some(0)) == [0]
 assert list(Nothing) == []
@@ -39,6 +39,11 @@ truth tests check presence, including `Some(False)` and `Some(None)`. iteration
 creates a fresh zero-or-one iterator each time. `to_optional()` returns the
 payload or None, so that conversion loses the distinction between Some(None)
 and Nothing.
+
+`is_some` and `is_none` are boolean attributes. their values are shared class
+constants, with no call or extra instance storage. `if option.is_some:` checks
+presence; `if option.is_some is True:` also narrows to `Some[T]` in all supported
+type checkers, allowing direct access to `option.value`.
 
 the design draws on [returns' Maybe][returns] and [Expression's Option][expression],
 with names and callback semantics following [Rust's Option][rust].

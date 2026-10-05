@@ -3,7 +3,17 @@
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from types import MemberDescriptorType
-from typing import Never, Self, TypeVar, cast, final, overload
+from typing import (
+    ClassVar,
+    Generic,
+    Literal,
+    Never,
+    Self,
+    TypeVar,
+    cast,
+    final,
+    overload,
+)
 
 __all__ = ["Nothing", "Option", "Some", "from_optional"]
 
@@ -23,24 +33,18 @@ def from_optional[U](value: U | None) -> Option[U]:
     return Nothing if value is None else Some(value)
 
 
-class _Option[T]:
+# explicit covariance survives method aliases in all supported type checkers.
+class _Option(Generic[T]):  # noqa: UP046
     __slots__ = ()
 
     def __bool__(self) -> bool:
         return False
 
     def __iter__(self) -> Iterator[T]:
+        """a fresh iterator over zero or one values."""
         return iter(())
 
-    def iter(self) -> Iterator[T]:
-        """a fresh iterator over zero or one values."""
-        return iter(self)
-
-    def is_some(self) -> bool:
-        return False
-
-    def is_none(self) -> bool:
-        return True
+    iter = __iter__
 
     def is_some_and(self, predicate: Callable[[T], bool]) -> bool:
         return False
@@ -117,6 +121,8 @@ class Some(_Option[T]):
     """a present value, including None and other falsey values."""
 
     value: T
+    is_some: ClassVar[Literal[True]] = True
+    is_none: ClassVar[Literal[False]] = False
 
     def __init__(self, value: T) -> None:
         _set_value(self, value)
@@ -128,13 +134,10 @@ class Some(_Option[T]):
         return True
 
     def __iter__(self) -> Iterator[T]:
+        """a fresh iterator over the present value."""
         return iter((self.value,))
 
-    def is_some(self) -> bool:
-        return True
-
-    def is_none(self) -> bool:
-        return False
+    iter = __iter__
 
     def is_some_and(self, predicate: Callable[[T], bool]) -> bool:
         return predicate(self.value)
@@ -188,10 +191,14 @@ class Some(_Option[T]):
         return self if predicate(self.value) else Nothing
 
     def xor[U](self, other: Option[U]) -> Option[T | U]:
-        return Nothing if other else self
+        return Nothing if other.is_some else self
 
     def zip[U](self, other: Option[U]) -> Option[tuple[T, U]]:
-        return Some((self.value, other.unwrap())) if other else Nothing
+        return (
+            Some((self.value, other.value))
+            if other.is_some is True
+            else Nothing
+        )
 
     def unzip[A, B](
         self: Some[tuple[A, B]],
@@ -212,6 +219,9 @@ _set_value: Callable[[object, object], None] = cast(
 @final
 @dataclass(frozen=True, slots=True, repr=False)
 class _Nothing(_Option[Never]):
+    is_some: ClassVar[Literal[False]] = False
+    is_none: ClassVar[Literal[True]] = True
+
     def __repr__(self) -> str:
         return "Nothing"
 
