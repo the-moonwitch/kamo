@@ -2,7 +2,8 @@
 
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Never, Self, TypeVar, final, overload
+from types import MemberDescriptorType
+from typing import Never, Self, TypeVar, cast, final, overload
 
 __all__ = ["Nothing", "Option", "Some", "from_optional"]
 
@@ -36,10 +37,10 @@ class _Option[T]:
         return iter(self)
 
     def is_some(self) -> bool:
-        return bool(self)
+        return False
 
     def is_none(self) -> bool:
-        return not self
+        return True
 
     def is_some_and(self, predicate: Callable[[T], bool]) -> bool:
         return False
@@ -117,6 +118,9 @@ class Some(_Option[T]):
 
     value: T
 
+    def __init__(self, value: T) -> None:
+        _set_value(self, value)
+
     def __repr__(self) -> str:
         return f"Some({self.value!r})"
 
@@ -124,7 +128,13 @@ class Some(_Option[T]):
         return True
 
     def __iter__(self) -> Iterator[T]:
-        yield self.value
+        return iter((self.value,))
+
+    def is_some(self) -> bool:
+        return True
+
+    def is_none(self) -> bool:
+        return False
 
     def is_some_and(self, predicate: Callable[[T], bool]) -> bool:
         return predicate(self.value)
@@ -191,6 +201,12 @@ class Some(_Option[T]):
 
     def flatten[U](self: Some[Option[U]]) -> Option[U]:
         return self.value
+
+
+# initialize the generated slot directly, retaining frozen dataclass semantics.
+_set_value: Callable[[object, object], None] = cast(
+    MemberDescriptorType, Some.__dict__["value"]
+).__set__
 
 
 @final

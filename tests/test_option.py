@@ -1,4 +1,5 @@
-from dataclasses import FrozenInstanceError
+from copy import copy, deepcopy
+from dataclasses import FrozenInstanceError, replace
 from typing import assert_type
 
 import pytest
@@ -67,6 +68,15 @@ def test_values_and_pattern_matching() -> None:
 
     assert match_value(Some(42)) == 42
     assert match_value(Nothing) is None
+
+
+def test_construction_and_reconstruction() -> None:
+    option = Some(value=[1])
+    assert copy(option) == option
+    cloned = deepcopy(option)
+    assert cloned == option
+    assert cloned.value is not option.value
+    assert replace(option, value=[2]) == Some([2])
 
 
 def test_callbacks_and_identity() -> None:

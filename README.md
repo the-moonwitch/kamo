@@ -26,6 +26,7 @@ construct with `Some(value)`, `Nothing`, or `from_optional(value)`. Some holds
 one payload slot; Nothing is shared. both are immutable values, support equality
 and hashing when their payload does, and have no instance dictionary. payloads
 retain their own mutability. `case Some(value)` preserves the payload type.
+both variants are `@final`; put domain-specific state in the payload.
 
 the initial API covers predicates, unwrapping, mapping, `and_then`, boolean
 combinators, `filter`, `inspect`, `zip`, `unzip`, and `flatten`.
