@@ -1,7 +1,50 @@
 # kamo
 
-a Python library scaffold for Rust-like Option, Result, and iterator idioms.
-Python 3.14+; no runtime dependencies. the public API is still to be implemented.
+a Python library for Rust-like Option, Result, and iterator idioms.
+Python 3.14+; no runtime dependencies. Option is available; Result and iterator
+combinators are next.
+
+```python
+from kamo import Nothing, Option, Some, from_optional
+
+
+def half_even(value: int) -> Option[int]:
+    return Some(value // 2) if value % 2 == 0 else Nothing
+
+
+assert Some(8).and_then(half_even).map(str).unwrap() == "4"
+assert Some(3).and_then(half_even) is Nothing
+assert Nothing.map(str) is Nothing
+assert Some(None).is_some()
+assert from_optional(None) is Nothing
+assert list(Some(0)) == [0]
+assert list(Nothing) == []
+```
+
+`Option[T]` is the covariant union of `Some[T]` and the absence variant.
+construct with `Some(value)`, `Nothing`, or `from_optional(value)`. Some holds
+one payload slot; Nothing is shared. both are immutable values, support equality
+and hashing when their payload does, and have no instance dictionary. payloads
+retain their own mutability. `case Some(value)` preserves the payload type.
+
+the initial API covers predicates, unwrapping, mapping, `and_then`, boolean
+combinators, `filter`, `inspect`, `zip`, `unzip`, and `flatten`.
+`and_` and `or_` avoid Python keywords; `or_else` takes a lazy factory.
+`unwrap` and `expect` raise `ValueError` on Nothing. fallback types can widen:
+calling `.unwrap_or("missing")` on an `Option[int]` returns `int | str`.
+borrowing, mutation, and Result-dependent Rust methods are deferred.
+
+truth tests check presence, including `Some(False)` and `Some(None)`. iteration
+creates a fresh zero-or-one iterator each time. `to_optional()` returns the
+payload or None, so that conversion loses the distinction between Some(None)
+and Nothing.
+
+the design draws on [returns' Maybe][returns] and [Expression's Option][expression],
+with names and callback semantics following [Rust's Option][rust].
+
+[returns]: https://github.com/dry-python/returns/blob/master/returns/maybe.py
+[expression]: https://github.com/dbrattli/Expression/blob/main/expression/core/option.py
+[rust]: https://doc.rust-lang.org/std/option/enum.Option.html
 
 ```sh
 mise trust
@@ -25,15 +68,14 @@ development, runtime code, and public types target Python 3.14.
 | `mise run build` | wheel and source distribution |
 | `mise run outdated` | available dependency updates |
 
-Hypothesis is ready for property tests as library operations are added. the
-current test is a package version smoke test. no coverage threshold is enforced
-while the library is empty. `tests/conftest.py` registers reproducible CI and
-larger fuzz profiles.
+tests cover Option behavior, callback laziness, public typing, and map/bind laws
+with Hypothesis. coverage locates gaps; no threshold is enforced.
+`tests/conftest.py` registers reproducible CI and larger fuzz profiles.
 
 benchmarks and profiles use the tools directly. for example:
 
 ```sh
-mise run bench -- --fast 'sum(range(1000))'
+mise run bench -- --fast -s 'from kamo import Some; x = Some(42)' 'x.map(str)'
 mise run profile -- -m pytest
 ```
 
@@ -42,5 +84,5 @@ mise run profile -- -m pytest
 `AGENTS.md`, `.zed/`, and `.vscode/` stay local and ignored.
 
 CI checks lint, types, and builds, and runs tests on Python 3.14 across linux,
-macOS, and windows. the default `dev` dependency
-group includes the test tools; compatibility jobs install only the `test` group.
+macOS, and windows. the default `dev` dependency group includes the test tools;
+compatibility jobs install only the `test` group.
