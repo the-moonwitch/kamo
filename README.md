@@ -1,7 +1,7 @@
 # kamo
 
 a Python library scaffold for Rust-like Option, Result, and iterator idioms.
-Python 3.10+; no runtime dependencies. the public API is still to be implemented.
+Python 3.14+; no runtime dependencies. the public API is still to be implemented.
 
 ```sh
 mise trust
@@ -12,7 +12,7 @@ mise run test
 ```
 
 mise pins uv; uv manages Python and the locked development dependencies.
-development defaults to Python 3.14. runtime code and public types target 3.10.
+development, runtime code, and public types target Python 3.14.
 
 | task | purpose |
 | --- | --- |
@@ -41,6 +41,6 @@ mise run profile -- -m pytest
 `pyproject.toml`. Pylance runs in the editor; CI checks upstream Pyright.
 `AGENTS.md`, `.zed/`, and `.vscode/` stay local and ignored.
 
-CI checks lint, types, and builds, and runs tests across CPython 3.10–3.14 and
-PyPy 3.11, with macOS and windows checks on 3.14. the default `dev` dependency
+CI checks lint, types, and builds, and runs tests on Python 3.14 across linux,
+macOS, and windows. the default `dev` dependency
 group includes the test tools; compatibility jobs install only the `test` group.
