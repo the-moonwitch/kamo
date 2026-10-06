@@ -1,6 +1,6 @@
 """immutable optional values, with Rust-style combinators."""
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from copy import deepcopy
 from dataclasses import dataclass
 from types import MemberDescriptorType
@@ -115,7 +115,7 @@ class _Option(Generic[T]):  # noqa: UP046
     def unzip[A, B](
         self: _Option[tuple[A, B]],
     ) -> tuple[Option[A], Option[B]]:
-        return Nothing, Nothing
+        return _nothing_pair
 
     def flatten[U](self: _Option[Option[U]]) -> Option[U]:
         return Nothing
@@ -145,6 +145,14 @@ class Some(_Option[T]):
         memo[id(self)] = result
         _set_value(result, deepcopy(self.value, memo))
         return result
+
+    def __getstate__(self) -> list[T]:
+        return [self.value]
+
+    def __setstate__(self, state: Iterable[object]) -> None:
+        for value in state:
+            _set_value(self, value)
+            break
 
     def __bool__(self) -> bool:
         return True
@@ -251,6 +259,15 @@ class _Nothing(_Option[Never]):
     def __repr__(self) -> str:
         return "Nothing"
 
+    def __hash__(self) -> int:
+        return _nothing_hash
+
+    def __getstate__(self) -> list[object]:
+        return []
+
+    def __setstate__(self, state: Iterable[object]) -> None:
+        return None
+
     def __copy__(self) -> Self:
         return type(self)()
 
@@ -262,3 +279,5 @@ class _Nothing(_Option[Never]):
 type Option[T] = Some[T] | _Nothing
 
 Nothing = _Nothing()
+_nothing_hash = hash(())
+_nothing_pair = (Nothing, Nothing)

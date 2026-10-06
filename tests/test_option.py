@@ -1,6 +1,7 @@
 from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, replace
-from typing import Literal, assert_type
+from pickle import HIGHEST_PROTOCOL, dumps, loads
+from typing import Literal, assert_type, cast
 
 import pytest
 from hypothesis import given
@@ -49,6 +50,7 @@ def test_values_and_pattern_matching() -> None:
     assert not same_value(Some(1), (1,))
     assert not same_value(Some(None), Nothing)
     assert hash(Some(1)) == hash(Some(1))
+    assert hash(Nothing) == hash(())
     assert {Nothing, Nothing} == {Nothing}
     assert repr(Some("text")) == "Some('text')"
     assert repr(Nothing) == "Nothing"
@@ -104,6 +106,58 @@ def test_deepcopy_graph_and_memo() -> None:
     assert replaced.value is replacement
     assert memo[id(option)] is replaced
     assert deepcopy(option, memo) is replaced
+
+
+@pytest.mark.parametrize("protocol", range(HIGHEST_PROTOCOL + 1))
+def test_pickle(protocol: int) -> None:
+    payloads: tuple[object, ...] = (None, False, 0, "", [])
+    for value in payloads:
+        option = Some(value)
+        restored = cast("Some[object]", loads(dumps(option, protocol)))
+        assert type(restored) is Some
+        assert restored == option and restored is not option
+    empty: object = loads(dumps(Nothing, protocol))
+    assert type(empty) is type(Nothing)
+    assert empty == Nothing and empty is not Nothing
+
+    child: list[object] = []
+    payload: list[object] = [child, child]
+    cyclic = Some(payload)
+    payload.append(cyclic)
+    cloned = cast("Some[list[object]]", loads(dumps(cyclic, protocol)))
+    assert cloned.value is not payload
+    assert cloned.value[0] is cloned.value[1]
+    assert cloned.value[0] is not child
+    assert cloned.value[2] is cloned
+    field = "value"
+    with pytest.raises(FrozenInstanceError):
+        setattr(cloned, field, [])
+
+
+def test_legacy_pickle_state() -> None:
+    # protocol 4 records produced before the specialized state hooks.
+    present = (
+        b"\x80\x04\x95&\x00\x00\x00\x00\x00\x00\x00\x8c\x0bkamo.option"
+        b"\x94\x8c\x04Some\x94\x93\x94)\x81\x94]\x94]\x94(K\x01Neab."
+    )
+    absent = (
+        b'\x80\x04\x95"\x00\x00\x00\x00\x00\x00\x00\x8c\x0bkamo.option'
+        b"\x94\x8c\x08_Nothing\x94\x93\x94)\x81\x94]\x94b."
+    )
+    assert loads(present) == Some([1, None])
+    assert loads(absent) == Nothing
+    assert dumps(Some([1, None]), 4) == present
+    assert dumps(Nothing, 4) == absent
+
+
+def test_state_restoration_consumes_one_value() -> None:
+    option = Some("original")
+    state = iter(("updated", "unused"))
+    option.__setstate__(state)
+    assert option.value == "updated"
+    assert next(state) == "unused"
+    option.__setstate__([])
+    assert option.value == "updated"
 
 
 def test_callbacks_and_identity() -> None:
