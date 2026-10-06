@@ -52,8 +52,9 @@ payload or None, so that conversion loses the distinction between Some(None)
 and Nothing.
 
 use `bool(option)` and `hash(option)` for the Python protocols. Some uses
-default object truth and has no `__bool__` method. Nothing's constant truth
-hook accepts no arguments, including when accessed on its class.
+default object truth and has no `__bool__` method. Nothing's constant truth,
+iteration, and length-hint hooks accept no arguments, including when accessed
+on its class. its zero length hint avoids allocating unused list capacity.
 
 `is_some` and `is_none` are boolean attributes. their values are shared class
 constants, with no call or extra instance storage. `if option.is_some:` checks

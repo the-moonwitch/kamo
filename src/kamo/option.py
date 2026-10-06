@@ -40,12 +40,6 @@ def from_optional[U](value: U | None) -> Option[U]:
 class _Option(Generic[T]):  # noqa: UP046
     __slots__ = ()
 
-    def __iter__(self) -> Iterator[T]:
-        """a fresh iterator over zero or one values."""
-        return iter(())
-
-    iter = __iter__
-
     def is_some_and(self, predicate: Callable[[T], bool]) -> bool:
         return False
 
@@ -292,8 +286,11 @@ class _Nothing(_Option[Never]):
     def __repr__(self) -> str:
         return "Nothing"
 
-    # the native constant hook avoids a Python frame on the truth path.
+    # native constant hooks avoid Python frames and speculative list capacity.
     __bool__ = False.__bool__
+    __iter__ = ().__iter__
+    iter = __iter__
+    __length_hint__ = ().__len__
 
     def __hash__(self) -> int:
         return _nothing_hash

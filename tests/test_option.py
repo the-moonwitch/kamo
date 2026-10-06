@@ -1,9 +1,12 @@
+from collections.abc import Iterator
 from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, replace
+from operator import length_hint
 from pickle import HIGHEST_PROTOCOL, dumps, loads
 from types import GenericAlias
 from typing import (
     Literal,
+    Never,
     TypeVar,
     assert_type,
     cast,
@@ -48,6 +51,21 @@ def test_absence_and_python_conversion() -> None:
         Nothing.unwrap()
     with pytest.raises(ValueError, match="missing name"):
         Nothing.expect("missing name")
+
+
+def test_fresh_iterators_and_empty_length_hint() -> None:
+    sentinel = object()
+    for option in (Some(None), Nothing):
+        first, second = iter(option), option.iter()
+        assert first is not second
+        if option.is_some is True:
+            assert next(first, sentinel) is None
+            assert next(second, sentinel) is None
+        assert next(first, sentinel) is sentinel
+        assert next(first, sentinel) is sentinel
+        assert next(second, sentinel) is sentinel
+    assert length_hint(Nothing, 100) == 0
+    assert_type(Nothing.iter(), Iterator[Never])
 
 
 def test_values_and_pattern_matching() -> None:
@@ -391,6 +409,8 @@ def test_public_types() -> None:
         assert eager == lazy
         assert pair == (Some((option.unwrap(), "two")) if option else Nothing)
         assert_type(option.to_optional(), int | None)
+        cursor: Iterator[int] = iter(option)
+        assert list(cursor) == list(option.iter())
         if option.is_some is True:
             assert_type(option, Some[int])
             assert_type(option.value, int)
