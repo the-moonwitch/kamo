@@ -28,6 +28,11 @@ and hashing when their payload does, and have no instance dictionary. payloads
 retain their own mutability. `case Some(value)` preserves the payload type.
 both variants are `@final`; put domain-specific state in the payload.
 
+`Some[int](value=1)` also supports explicit type parameters. runtime aliases
+are native `types.GenericAlias` values with a bounded cache; introspect them
+with `typing.get_origin` and `typing.get_args`. their concrete type and equality
+with private `typing` aliases differ from the standard generic wrapper.
+
 the initial API covers predicates, unwrapping, mapping, `and_then`, boolean
 combinators, `filter`, `inspect`, `zip`, `unzip`, and `flatten`.
 `zip_with(other, function)` combines two present payloads directly; its callback
@@ -45,6 +50,10 @@ truth tests check presence, including `Some(False)` and `Some(None)`. iteration
 creates a fresh zero-or-one iterator each time. `to_optional()` returns the
 payload or None, so that conversion loses the distinction between Some(None)
 and Nothing.
+
+use `bool(option)` and `hash(option)` for the Python protocols. Some uses
+default object truth and has no `__bool__` method. Nothing's constant truth
+hook accepts no arguments, including when accessed on its class.
 
 `is_some` and `is_none` are boolean attributes. their values are shared class
 constants, with no call or extra instance storage. `if option.is_some:` checks

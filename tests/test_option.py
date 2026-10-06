@@ -1,7 +1,16 @@
 from copy import copy, deepcopy
 from dataclasses import FrozenInstanceError, replace
 from pickle import HIGHEST_PROTOCOL, dumps, loads
-from typing import Literal, assert_type, cast
+from types import GenericAlias
+from typing import (
+    Literal,
+    TypeVar,
+    assert_type,
+    cast,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 import pytest
 from hypothesis import given
@@ -24,6 +33,8 @@ def test_present_falsey_values(value: object) -> None:
 
 def test_absence_and_python_conversion() -> None:
     assert not Nothing
+    assert_type(Nothing.__bool__(), bool)
+    assert Nothing.__bool__() is False
     assert Nothing.is_none and not Nothing.is_some
     assert list(Nothing) == []
     assert list(Nothing.iter()) == []
@@ -83,6 +94,68 @@ def test_construction_and_reconstruction() -> None:
     assert replace(option, value=[2]) == Some([2])
     for clone in (copy(Nothing), deepcopy(Nothing)):
         assert clone == Nothing and clone is not Nothing
+
+
+def test_generic_construction_and_metadata() -> None:
+    option = Some[int](value=1)
+    assert_type(option, Some[int])
+    assert_type(option.value, int)
+    assert option == Some(1)
+    assert isinstance(Some[int], GenericAlias)
+    assert get_origin(Some[int]) is Some
+    assert get_args(Some[int]) == (int,)
+    assert get_args(Some[None]) == (type(None),)
+    assert not hasattr(option, "__orig_class__")
+
+    parameter = TypeVar("parameter")
+    variable = Some.__class_getitem__(parameter)
+    specialized = variable[int]
+    assert get_args(specialized) == (int,)
+    assert get_origin(specialized) is Some
+    factory = cast("type[Some[int]]", specialized)
+    assert factory(value=2) == Some(2)
+    for parameters in ((), (int, str)):
+        with pytest.raises(TypeError):
+            Some.__class_getitem__(parameters)
+
+    def annotated(value: Some[int]) -> Some[None]:
+        return Some(None)
+
+    hints = get_type_hints(annotated)
+    assert get_args(hints["value"]) == (int,)
+    assert get_args(hints["return"]) == (type(None),)
+    restored = cast("type[Some[int]]", loads(dumps(Some[int])))
+    assert restored == Some[int]
+    assert get_args(restored) == (int,) and get_origin(restored) is Some
+    assert restored(value=3) == Some(3)
+    assert loads(dumps(Some[list[int]](value=[1]))) == Some([1])
+
+
+def test_unhashable_type_argument() -> None:
+    class UnhashableType(type):
+        def __hash__(cls) -> int:
+            raise TypeError("unhashable type")
+
+    class Payload(metaclass=UnhashableType):
+        pass
+
+    payload = Payload()
+    option = Some[Payload](value=payload)
+    assert_type(option, Some[Payload])
+    assert option.value is payload
+    assert get_args(Some[Payload]) == (Payload,)
+
+
+def test_truth_does_not_evaluate_payload() -> None:
+    class Payload:
+        def __bool__(self) -> bool:
+            raise AssertionError("payload truth was evaluated")
+
+    assert bool(Some(Payload())) is True
+    assert list(filter(None, (Nothing, Some(False), Some(None)))) == [
+        Some(False),
+        Some(None),
+    ]
 
 
 def test_deepcopy_graph_and_memo() -> None:

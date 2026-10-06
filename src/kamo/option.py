@@ -3,7 +3,8 @@
 from collections.abc import Callable, Iterable, Iterator
 from copy import deepcopy
 from dataclasses import dataclass
-from types import MemberDescriptorType
+from functools import lru_cache
+from types import ClassMethodDescriptorType, GenericAlias, MemberDescriptorType
 from typing import (
     ClassVar,
     Generic,
@@ -13,6 +14,7 @@ from typing import (
     TypeVar,
     cast,
     final,
+    get_args,
     overload,
 )
 
@@ -37,9 +39,6 @@ def from_optional[U](value: U | None) -> Option[U]:
 # explicit covariance survives method aliases in all supported type checkers.
 class _Option(Generic[T]):  # noqa: UP046
     __slots__ = ()
-
-    def __bool__(self) -> bool:
-        return False
 
     def __iter__(self) -> Iterator[T]:
         """a fresh iterator over zero or one values."""
@@ -133,6 +132,14 @@ class Some(_Option[T]):
     def __init__(self, value: T) -> None:
         _set_value(self, value)
 
+    @classmethod
+    def __class_getitem__(cls, parameters: object) -> GenericAlias:
+        try:
+            return _cached_alias(cls, parameters)
+        except TypeError:
+            # valid type arguments can have an unhashable metaclass.
+            return _alias(cls, parameters)
+
     def __repr__(self) -> str:
         return f"Some({self.value!r})"
 
@@ -153,9 +160,6 @@ class Some(_Option[T]):
         for value in state:
             _set_value(self, value)
             break
-
-    def __bool__(self) -> bool:
-        return True
 
     def __iter__(self) -> Iterator[T]:
         """a fresh iterator over the present value."""
@@ -250,6 +254,35 @@ _set_value: Callable[[object, object], None] = cast(
 ).__set__
 
 
+class _SomeAlias(GenericAlias):
+    __slots__ = ()
+    # frozen options cannot store __orig_class__; skip that failed assignment.
+    __call__ = Some
+
+    def __getitem__(self, parameters: object) -> GenericAlias:
+        specialized = super().__getitem__(parameters)
+        return _SomeAlias(Some, specialized.__args__)
+
+
+_generic_getitem = cast(
+    ClassMethodDescriptorType, Generic.__dict__["__class_getitem__"]
+)
+
+
+def _alias(cls: type[object], parameters: object) -> GenericAlias:
+    getitem = cast(
+        "Callable[[object], object]", _generic_getitem.__get__(None, cls)
+    )
+    alias_type = _SomeAlias if cls is Some else GenericAlias
+    return alias_type(cls, get_args(getitem(parameters)))
+
+
+_cached_alias = cast(
+    "Callable[[type[object], object], GenericAlias]",
+    lru_cache(maxsize=128)(_alias),
+)
+
+
 @final
 @dataclass(frozen=True, slots=True, repr=False)
 class _Nothing(_Option[Never]):
@@ -258,6 +291,9 @@ class _Nothing(_Option[Never]):
 
     def __repr__(self) -> str:
         return "Nothing"
+
+    # the native constant hook avoids a Python frame on the truth path.
+    __bool__ = False.__bool__
 
     def __hash__(self) -> int:
         return _nothing_hash
