@@ -1,6 +1,7 @@
 """immutable optional values, with Rust-style combinators."""
 
 from collections.abc import Callable, Iterator
+from copy import deepcopy
 from dataclasses import dataclass
 from types import MemberDescriptorType
 from typing import (
@@ -106,6 +107,11 @@ class _Option(Generic[T]):  # noqa: UP046
     def zip[U](self, other: Option[U]) -> Option[tuple[T, U]]:
         return Nothing
 
+    def zip_with[U, V](
+        self, other: Option[U], function: Callable[[T, U], V]
+    ) -> Option[V]:
+        return Nothing
+
     def unzip[A, B](
         self: _Option[tuple[A, B]],
     ) -> tuple[Option[A], Option[B]]:
@@ -129,6 +135,16 @@ class Some(_Option[T]):
 
     def __repr__(self) -> str:
         return f"Some({self.value!r})"
+
+    def __copy__(self) -> Some[T]:
+        return Some(self.value)
+
+    def __deepcopy__(self, memo: dict[int, object]) -> Some[T]:
+        result = object.__new__(type(self))
+        # register before cloning the payload, which may refer to this option.
+        memo[id(self)] = result
+        _set_value(result, deepcopy(self.value, memo))
+        return result
 
     def __bool__(self) -> bool:
         return True
@@ -200,6 +216,16 @@ class Some(_Option[T]):
             else Nothing
         )
 
+    def zip_with[U, V](
+        self, other: Option[U], function: Callable[[T, U], V]
+    ) -> Option[V]:
+        """combine present payloads without an intermediate pair."""
+        return (
+            Some(function(self.value, other.value))
+            if other.is_some is True
+            else Nothing
+        )
+
     def unzip[A, B](
         self: Some[tuple[A, B]],
     ) -> tuple[Some[A], Some[B]]:
@@ -224,6 +250,12 @@ class _Nothing(_Option[Never]):
 
     def __repr__(self) -> str:
         return "Nothing"
+
+    def __copy__(self) -> Self:
+        return type(self)()
+
+    def __deepcopy__(self, memo: dict[int, object]) -> Self:
+        return type(self)()
 
 
 # a closed union preserves the payload type when matching either variant.

@@ -72,11 +72,38 @@ def test_values_and_pattern_matching() -> None:
 
 def test_construction_and_reconstruction() -> None:
     option = Some(value=[1])
-    assert copy(option) == option
+    shallow = copy(option)
+    assert shallow is not option and shallow.value is option.value
     cloned = deepcopy(option)
     assert cloned == option
+    assert cloned is not option
     assert cloned.value is not option.value
     assert replace(option, value=[2]) == Some([2])
+    for clone in (copy(Nothing), deepcopy(Nothing)):
+        assert clone == Nothing and clone is not Nothing
+
+
+def test_deepcopy_graph_and_memo() -> None:
+    child: list[object] = []
+    payload: list[object] = [child, child]
+    option = Some(payload)
+    payload.append(option)
+    child.append(child)
+    cloned = deepcopy(option)
+    assert cloned.value is not payload
+    assert cloned.value[0] is cloned.value[1]
+    assert cloned.value[0] is not child
+    assert cloned.value[2] is cloned
+    cloned_child = cloned.value[0]
+    assert isinstance(cloned_child, list)
+    assert cloned_child[0] is cloned_child
+
+    replacement: list[object] = ["replacement"]
+    memo: dict[int, object] = {id(payload): replacement}
+    replaced = deepcopy(option, memo)
+    assert replaced.value is replacement
+    assert memo[id(option)] is replaced
+    assert deepcopy(option, memo) is replaced
 
 
 def test_callbacks_and_identity() -> None:
@@ -162,6 +189,31 @@ def test_callback_errors_propagate() -> None:
         Some(1).map(fail)
 
 
+def test_zip_with() -> None:
+    calls: list[tuple[object, object]] = []
+    payloads: tuple[object, ...] = (None, False, 0, "", [])
+
+    def first(left: object, right: object) -> object:
+        calls.append((left, right))
+        return left
+
+    for value in payloads:
+        result = Some(value).zip_with(other=Some("right"), function=first)
+        assert result.is_some is True and result.value is value
+    assert calls == [(value, "right") for value in payloads]
+    calls.clear()
+    assert Some(None).zip_with(Nothing, first) is Nothing
+    assert Nothing.zip_with(Some(None), first) is Nothing
+    assert Nothing.zip_with(Nothing, first) is Nothing
+    assert calls == []
+
+    def fail(left: int, right: int) -> int:
+        raise RuntimeError("bug")
+
+    with pytest.raises(RuntimeError, match="bug"):
+        Some(1).zip_with(Some(2), fail)
+
+
 @given(st.integers() | st.none())
 def test_option_laws(value: int | None) -> None:
     option = from_optional(value)
@@ -183,6 +235,9 @@ def test_option_laws(value: int | None) -> None:
     assert option.filter(lambda x: x % 2 == 0) == (
         Some(value) if value is not None and value % 2 == 0 else Nothing
     )
+    assert option.zip_with(Some(2), lambda left, right: left + right) == (
+        Some(value + 2) if value is not None else Nothing
+    )
 
 
 def test_public_types() -> None:
@@ -200,6 +255,12 @@ def test_public_types() -> None:
         eager: Option[int | str] = option.or_(Some("default"))
         lazy: Option[int | str] = option.or_else(lambda: Some("default"))
         pair: Option[tuple[int, str]] = option.zip(Some("two"))
+        assert_type(
+            option.zip_with(
+                Some("two"), lambda number, text: f"{number}{text}"
+            ),
+            Option[str],
+        )
         assert eager == lazy
         assert pair == (Some((option.unwrap(), "two")) if option else Nothing)
         assert_type(option.to_optional(), int | None)
@@ -218,6 +279,8 @@ def test_public_types() -> None:
     assert_type(Some(None).is_none, Literal[False])
     assert_type(Nothing.is_none, Literal[True])
     assert_type(Some(1).map(str), Some[str])
+    assert_type(copy(Some(1)), Some[int])
+    assert_type(deepcopy(Some(1)), Some[int])
     assert_type(Some(1).unwrap_or(None), int)
     assert_type(Some(1).or_(Some("default")), Some[int])
 

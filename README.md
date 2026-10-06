@@ -30,6 +30,8 @@ both variants are `@final`; put domain-specific state in the payload.
 
 the initial API covers predicates, unwrapping, mapping, `and_then`, boolean
 combinators, `filter`, `inspect`, `zip`, `unzip`, and `flatten`.
+`zip_with(other, function)` combines two present payloads directly; its callback
+receives both values and is skipped if either option is Nothing.
 `and_` and `or_` avoid Python keywords; `or_else` takes a lazy factory.
 `unwrap` and `expect` raise `ValueError` on Nothing. fallback types can widen:
 calling `.unwrap_or("missing")` on an `Option[int]` returns `int | str`.
