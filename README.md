@@ -1,6 +1,6 @@
 # kamo
 
-a Python library for Rust-like Option, Result, and iterator idioms.
+a pure Python library for Rust-like Option, Result, and iterator idioms.
 Python 3.14+; no runtime dependencies. Option is available; Result and iterator
 combinators are next.
 
@@ -34,6 +34,10 @@ combinators, `filter`, `inspect`, `zip`, `unzip`, and `flatten`.
 `unwrap` and `expect` raise `ValueError` on Nothing. fallback types can widen:
 calling `.unwrap_or("missing")` on an `Option[int]` returns `int | str`.
 borrowing, mutation, and Result-dependent Rust methods are deferred.
+
+`map_or(default, function)` returns the mapped payload directly, avoiding an
+intermediate Some when consuming the result. `map_or_else` also makes the
+fallback lazy.
 
 truth tests check presence, including `Some(False)` and `Some(None)`. iteration
 creates a fresh zero-or-one iterator each time. `to_optional()` returns the
