@@ -200,6 +200,26 @@ def test_pickle_variants_and_cycles(protocol: int) -> None:
         assert restored_payload[2] is restored
 
 
+def test_pickle_loads_previous_list_state() -> None:
+    fixtures = (
+        (
+            b"\x80\x04\x95\x1e\x00\x00\x00\x00\x00\x00\x00"
+            b"\x8c\x0bkamo.result\x94\x8c\x02Ok\x94\x93\x94)\x81"
+            b"\x94]\x94Nab.",
+            Ok(None),
+        ),
+        (
+            b"\x80\x04\x95'\x00\x00\x00\x00\x00\x00\x00"
+            b"\x8c\x0bkamo.result\x94\x8c\x03Err\x94\x93\x94)\x81"
+            b"\x94]\x94\x8c\x06failed\x94ab.",
+            Err("failed"),
+        ),
+    )
+    for blob, expected in fixtures:
+        restored = loads(blob)
+        assert type(restored) is type(expected) and restored == expected
+
+
 def test_iteration_is_fresh_and_success_only() -> None:
     sentinel = object()
     ok, err = Ok[None](None), Err[None](None)

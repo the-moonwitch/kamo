@@ -34,10 +34,16 @@ def _class_getitem(cls: type[object], parameters: object) -> GenericAlias:
         return _alias(cls, parameters)
 
 
+class _ResultBase:
+    __slots__ = ()
+
+    __class_getitem__ = classmethod(_class_getitem)
+
+
 # explicit covariance keeps variant methods precise in all supported checkers.
 @final
 @dataclass(frozen=True, slots=True, repr=False)
-class Ok(Generic[T]):  # noqa: UP046
+class Ok(_ResultBase, Generic[T]):  # noqa: UP046
     """a successful value, including None and other falsey values."""
 
     value: T
@@ -46,8 +52,6 @@ class Ok(Generic[T]):  # noqa: UP046
 
     def __init__(self, value: T) -> None:
         _set_ok(self, value)
-
-    __class_getitem__ = classmethod(_class_getitem)
 
     def __repr__(self) -> str:
         return f"Ok({self.value!r})"
@@ -61,8 +65,8 @@ class Ok(Generic[T]):  # noqa: UP046
         _set_ok(result, deepcopy(self.value, memo))
         return result
 
-    def __getstate__(self) -> list[T]:
-        return [self.value]
+    def __getstate__(self) -> tuple[T]:
+        return (self.value,)
 
     def __setstate__(self, state: Iterable[object]) -> None:
         for value in state:
@@ -170,7 +174,7 @@ class Ok(Generic[T]):  # noqa: UP046
 
 @final
 @dataclass(frozen=True, slots=True, repr=False)
-class Err(Generic[E]):  # noqa: UP046
+class Err(_ResultBase, Generic[E]):  # noqa: UP046
     """an error payload, without requiring an exception."""
 
     error: E
@@ -179,8 +183,6 @@ class Err(Generic[E]):  # noqa: UP046
 
     def __init__(self, error: E) -> None:
         _set_err(self, error)
-
-    __class_getitem__ = classmethod(_class_getitem)
 
     def __repr__(self) -> str:
         return f"Err({self.error!r})"
@@ -194,8 +196,8 @@ class Err(Generic[E]):  # noqa: UP046
         _set_err(result, deepcopy(self.error, memo))
         return result
 
-    def __getstate__(self) -> list[E]:
-        return [self.error]
+    def __getstate__(self) -> tuple[E]:
+        return (self.error,)
 
     def __setstate__(self, state: Iterable[object]) -> None:
         for error in state:
