@@ -18,7 +18,7 @@ from typing import (
     overload,
 )
 
-__all__ = ["Nothing", "Option", "Some", "from_optional"]
+__all__ = ["Nothing", "NothingType", "Option", "Some", "from_optional"]
 
 T = TypeVar("T", covariant=True)
 
@@ -312,5 +312,6 @@ class _Nothing(_Option[Never]):
 type Option[T] = Some[T] | _Nothing
 
 Nothing = _Nothing()
+NothingType = _Nothing
 _nothing_hash = hash(())
 _nothing_pair = (Nothing, Nothing)

@@ -1,8 +1,8 @@
 # kamo
 
 a pure Python library for Rust-like Option, Result, and iterator idioms.
-Python 3.14+; no runtime dependencies. Option is available; Result and iterator
-combinators are next.
+Python 3.14+; no runtime dependencies. Option and Result are available;
+iterator combinators are next.
 
 ```python
 from kamo import Nothing, Option, Some, from_optional
@@ -40,7 +40,7 @@ receives both values and is skipped if either option is Nothing.
 `and_` and `or_` avoid Python keywords; `or_else` takes a lazy factory.
 `unwrap` and `expect` raise `ValueError` on Nothing. fallback types can widen:
 calling `.unwrap_or("missing")` on an `Option[int]` returns `int | str`.
-borrowing, mutation, and Result-dependent Rust methods are deferred.
+borrowing, mutation, and Option-to-Result Rust methods are deferred.
 
 `map_or(default, function)` returns the mapped payload directly, avoiding an
 intermediate Some when consuming the result. `map_or_else` also makes the
@@ -68,6 +68,59 @@ with names and callback semantics following [Rust's Option][rust].
 [expression]: https://github.com/dbrattli/Expression/blob/main/expression/core/option.py
 [rust]: https://doc.rust-lang.org/std/option/enum.Option.html
 
+```python
+from kamo import Err, Nothing, Ok, Result, Some
+
+
+def positive(value: int) -> Result[int, str]:
+    return Ok(value) if value > 0 else Err("must be positive")
+
+
+assert positive(8).map(str).unwrap() == "8"
+assert positive(-1).map(str) == Err("must be positive")
+assert positive(-1).or_else(lambda error: Ok(len(error))).unwrap() == 16
+assert Ok(None).ok() == Some(None)
+assert Err("missing").ok() is Nothing
+assert Ok(Some(2)).transpose() == Some(Ok(2))
+```
+
+`Result[T, E]` is the covariant union of `Ok[T]` and `Err[E]`. construct with
+`Ok(value)` or `Err(error)`, including keyword arguments and explicit type
+parameters such as `Ok[int](value=1)` and `Err[str](error="missing")`. each
+variant has one frozen payload slot and no instance dictionary. both support
+value equality, hashing for hashable payloads, copy/deepcopy, and pickle.
+both variants are `@final`; additional domain state belongs in the payload.
+`case Ok(value)` and `case Err(error)` preserve their respective payload types.
+error payloads can be any type; callback exceptions propagate unchanged.
+
+the API follows [Rust's Result][rust-result]: predicates, `ok()` / `err()`
+conversion to Option, `map`, `map_err`, `map_or`, `map_or_else`, `inspect`,
+`inspect_err`, `and_`, `and_then`, `or_`, `or_else`, unwrapping, `flatten`,
+and `transpose`. inactive callbacks are skipped, and pass-through methods reuse
+the existing wrapper. `map_or` and `map_or_else` consume a mapped value without
+allocating an intermediate Ok.
+
+`unwrap_or_else`, `map_or_else`, and `or_else` pass the error payload to their
+fallback callback. `unwrap` / `expect` on Err and `unwrap_err` / `expect_err`
+on Ok raise `ValueError` with the unexpected payload's representation.
+Python's value and error types can widen: chaining a `Result[int, str]` with
+a function returning `Result[float, bytes]` gives `Result[float, str | bytes]`;
+recovering with it gives `Result[int | float, bytes]`.
+
+`is_ok` and `is_err` are shared boolean attributes. `if result.is_ok is True:`
+narrows to Ok in all supported type checkers; the corresponding Err check
+narrows to Err. truth tests distinguish success from error regardless of the
+payload's truth. iteration yields the successful value once or nothing on Err,
+with a fresh iterator each time. borrowing, mutation, unchecked access, and
+Rust's type-directed Default methods have no direct equivalent in this API.
+
+`NothingType` names the existing absence class for annotations and pattern
+matching; `Nothing` remains the shared absence value. Result's `transpose()`
+turns `Ok(Some(value))` into `Some(Ok(value))`, `Ok(Nothing)` into Nothing,
+and `Err(error)` into `Some(Err(error))`.
+
+[rust-result]: https://doc.rust-lang.org/std/result/enum.Result.html
+
 ```sh
 mise trust
 mise install
@@ -90,8 +143,8 @@ development, runtime code, and public types target Python 3.14.
 | `mise run build` | wheel and source distribution |
 | `mise run outdated` | available dependency updates |
 
-tests cover Option behavior, callback laziness, public typing, and map/bind laws
-with Hypothesis. coverage locates gaps; no threshold is enforced.
+tests cover Option and Result behavior, callback laziness, public typing, and
+map/bind laws with Hypothesis. coverage locates gaps; no threshold is enforced.
 `tests/conftest.py` registers reproducible CI and larger fuzz profiles.
 
 benchmarks and profiles use the tools directly. for example:
