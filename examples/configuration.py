@@ -20,9 +20,12 @@ def parse_entry(line: str) -> Option[Result[Entry, str]]:
 
 def read_section(lines: Iter[str]) -> tuple[dict[str, str], list[str]]:
     """consume a section; retain errors and let the last duplicate key win."""
-    entries, errors = lines.map_while(parse_entry).partition(
-        lambda entry: entry.is_ok
-    )
-    return dict(entry.unwrap() for entry in entries), [
-        error.unwrap_err() for error in errors
-    ]
+    settings: dict[str, str] = {}
+    errors: list[str] = []
+    for entry in lines.map_while(parse_entry):
+        if entry.is_ok is True:
+            key, value = entry.value
+            settings[key] = value
+        else:
+            errors.append(entry.error)
+    return settings, errors

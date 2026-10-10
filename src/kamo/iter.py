@@ -313,7 +313,8 @@ class Peekable(Iter[T]):
     __slots__ = ("_buffer",)
 
     def __init__(self, iterable: Iterable[T]) -> None:
-        super().__init__(iterable)
+        # unbound generic access loses T in Pyright; this signature retains it.
+        Iter.__init__(self, iterable)  # pyright: ignore[reportUnknownMemberType]
         # None means unfilled; Nothing means exhausted; Some(None) is an item.
         self._buffer: Option[T] | None = None
 
