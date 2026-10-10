@@ -1,0 +1,43 @@
+:root {
+    --kamo-pond: #275c4b;
+    --kamo-paper: #fffdf7;
+    --kamo-ink: #293c34;
+}
+
+.wy-side-nav-search,
+.wy-nav-top {
+    background: var(--kamo-pond);
+}
+
+.wy-nav-side {
+    background: #25332e;
+}
+
+.wy-nav-content-wrap {
+    background: #f0f3ed;
+}
+
+.wy-nav-content {
+    background: var(--kamo-paper);
+}
+
+.wy-side-nav-search a img.logo {
+    width: 96px;
+    height: auto;
+    margin: 0 auto 8px;
+}
+
+.rst-content h1,
+.rst-content h2 {
+    color: var(--kamo-ink);
+}
+
+.rst-content a {
+    color: var(--kamo-pond);
+}
+
+.rst-content code.literal {
+    color: #854d15;
+    background: #fff6db;
+    border-color: #eadcb6;
+}

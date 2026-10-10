@@ -1,5 +1,7 @@
 # configuration reader
 
+a small paddle through a stream of settings.
+
 this example combines Option section boundaries with Result entry errors. a
 blank line ends a section and is consumed; later lines remain available.
 malformed entries accumulate ordered errors, and the last duplicate key wins.

@@ -1,10 +1,12 @@
 # using kamo
 
-kamo distinguishes a missing value, an expected failure, and an exhausted
-iterator. its wrappers are immutable; their payloads keep their own mutability.
-Python 3.14 or newer is required.
+welcome to the pond. kamo distinguishes a missing value, an expected failure,
+and an exhausted iterator. its wrappers are immutable; their payloads keep
+their own mutability. Python 3.14 or newer is required.
 
 ## optional values
+
+our maybe: a duck in the pond, or no duck at all.
 
 `Option[T]` is `Some[T] | NothingType`. use `Some(value)` for presence and the
 shared `Nothing` value for absence. presence is independent of truthiness:
@@ -46,6 +48,9 @@ fallback when absence is expected. ordinary arguments are evaluated before a
 method runs; an `_else` callback delays its work until it is needed.
 
 ## expected failures
+
+when a computation goes swimmingly, return `Ok`. an expected failure gets an
+`Err` with something useful to tell the caller.
 
 `Result[T, E]` is `Ok[T] | Err[E]`. the error can be a string, an exception,
 or a structured domain value. turn exceptions into Err at the boundary that
@@ -141,6 +146,8 @@ assert Nothing.transpose() == Ok(Nothing)
 
 ## one-shot pipelines
 
+let values paddle through, one at a time.
+
 `Iter(iterable)` captures one Python iterator. adapters are lazy, and every
 alias shares that cursor. consume through Python iteration or use `.next()`
 for an Option. Iter is an iterable; `next(iter(values))` retrieves a raw item.
@@ -189,6 +196,8 @@ StopIteration become RuntimeError, while Python's map/filter and other native
 adapters may interpret StopIteration as exhaustion.
 
 ## retaining a delimiter
+
+a curious duck likes a little lookahead.
 
 Peekable keeps one item of lookahead. repeated `peek()` calls return the same
 Some, and a rejected `next_if` leaves that item available. derived adapters,

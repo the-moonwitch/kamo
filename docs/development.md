@@ -1,5 +1,7 @@
 # developing kamo
 
+even a small duck deserves a tidy pond.
+
 work from a checkout with mise installed:
 
 ```sh
@@ -51,13 +53,13 @@ installs the locked `docs` dependency group. Sphinx renders the existing
 Markdown through MyST and uses the Read the Docs theme. the landing page
 includes the README, and the configuration example includes its Python source.
 
+the live docs are at
+[kamo-py.readthedocs.io](https://kamo-py.readthedocs.io/en/latest/).
 `.readthedocs.yaml` selects Python 3.14, the uv docs group, and `docs/conf.py`.
-warnings fail both the local build and the hosted build. to enable hosting,
-import `https://github.com/the-moonwitch/kamo.git` into
-[Read the Docs](https://app.readthedocs.org/dashboard/import/), select
-`codex/scaffold` as the default branch, and trigger the first build. use the
-[official import guide](https://docs.readthedocs.com/platform/stable/intro/add-project.html)
-for connecting GitHub and enabling builds on pushes.
+warnings fail both the local build and the hosted build. Read the Docs calls
+the default branch `latest`; it currently follows `codex/scaffold`. see the
+[versioning guide](https://docs.readthedocs.com/platform/stable/versions.html)
+for how branches, tags, and documentation versions fit together.
 
 ## measuring performance
 

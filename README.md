@@ -1,4 +1,14 @@
-# kamo
+# kamo · かも
+
+<img src="docs/_static/kamo-duck.png" width="144"
+     alt="a duck with a lambda wing and a question-mark tail">
+
+<!-- introduction -->
+
+*a little duck for things that might be.*
+
+鴨 (*kamo*) means “duck”; かも expresses “maybe.” Python's duck typing meets
+Maybe types. sometimes there's a duck. sometimes there's `Nothing`.
 
 Rust-like Option, Result, and iterator idioms for Python 3.14+.
 pure Python, precise types, and no runtime dependencies.
@@ -43,7 +53,8 @@ success rather than the payload's truth. exceptions raised by callbacks
 propagate. iterator aliases share a cursor; stopping early leaves later items
 available. the caller owns input resources.
 
-read the [usage guide](docs/guide.md), [API reference](docs/reference.md), or
+visit the [pond on Read the Docs](https://kamo-py.readthedocs.io/en/latest/),
+or read the [usage guide](docs/guide.md), [API reference](docs/reference.md), or
 [development guide](docs/development.md). the small
 [configuration reader](docs/configuration.md) combines optional section
 boundaries with Result errors and processes a section in one pass.

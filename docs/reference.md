@@ -1,5 +1,7 @@
 # API reference
 
+a field guide to the duck: each operation and exactly what it promises.
+
 import the public vocabulary from `kamo`:
 
 ```python

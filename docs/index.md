@@ -1,4 +1,12 @@
+# kamo · かも
+
+```{image} _static/kamo-duck.png
+:width: 144
+:alt: a duck with a lambda wing and a question-mark tail
+```
+
 ```{include} ../README.md
+:start-after: <!-- introduction -->
 :relative-docs: docs/
 ```
 
