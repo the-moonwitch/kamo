@@ -39,6 +39,10 @@ run = "uv run --locked pyinstrument"
 description = "build a wheel and source distribution"
 run = "uv build --no-sources"
 
+[tasks.docs]
+description = "build the documentation; fail on warnings and broken references"
+run = "uv run --locked --group docs sphinx-build -W --keep-going -b html docs build/docs"
+
 [tasks.outdated]
 description = "report installed packages with newer releases"
 run = "uv pip list --outdated --exclude-editable"

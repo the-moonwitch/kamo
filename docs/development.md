@@ -23,6 +23,7 @@ includes the test tools; CI's compatibility jobs install only the test group.
 | `mise run bench -- '<expression>'` | pyperf timings |
 | `mise run profile -- path/to/workload.py` | Pyinstrument sampling |
 | `mise run build` | wheel and source distribution |
+| `mise run docs` | Sphinx HTML with warnings treated as errors |
 | `mise run outdated` | available dependency updates |
 
 `pyrightconfig.json` configures BasedPyright, Pyright, and Pylance. mypy uses
@@ -38,10 +39,25 @@ focused examples and independent Hypothesis oracles for behavior and laws.
 coverage locates missing paths; it has no enforced threshold and does not
 prove correctness.
 
-CI checks lint, typing, and builds. it runs Python 3.14 tests on Linux, macOS,
-and Windows. `tests/conftest.py` registers reproducible CI and larger fuzz
-profiles. run the required checks before committing; for documentation, also
-execute examples and verify local links.
+CI checks lint, typing, documentation, and builds. it runs Python 3.14 tests on
+Linux, macOS, and Windows. `tests/conftest.py` registers reproducible CI and
+larger fuzz profiles. run the required checks before committing; for
+documentation, also execute examples and verify local links.
+
+## rendering and hosting the docs
+
+run `mise run docs`, then open `build/docs/index.html` in a browser. the task
+installs the locked `docs` dependency group. Sphinx renders the existing
+Markdown through MyST and uses the Read the Docs theme. the landing page
+includes the README, and the configuration example includes its Python source.
+
+`.readthedocs.yaml` selects Python 3.14, the uv docs group, and `docs/conf.py`.
+warnings fail both the local build and the hosted build. to enable hosting,
+import `https://github.com/the-moonwitch/kamo.git` into
+[Read the Docs](https://app.readthedocs.org/dashboard/import/), select
+`codex/scaffold` as the default branch, and trigger the first build. use the
+[official import guide](https://docs.readthedocs.com/platform/stable/intro/add-project.html)
+for connecting GitHub and enabling builds on pushes.
 
 ## measuring performance
 

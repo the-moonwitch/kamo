@@ -237,7 +237,7 @@ with StringIO("port=8080\nbroken\n\nnext=yes\n") as source:
 assert source.closed
 ```
 
-this [configuration reader](../examples/configuration.py) ends a section at a
+this [configuration reader](configuration.md) ends a section at a
 blank line, retains malformed-entry errors, and lets the last duplicate key
 win. it assembles results in one pass so intermediate Result objects can be
 released promptly. keys must be nonempty; values may be empty and contain `=`.

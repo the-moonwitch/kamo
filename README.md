@@ -45,7 +45,7 @@ available. the caller owns input resources.
 
 read the [usage guide](docs/guide.md), [API reference](docs/reference.md), or
 [development guide](docs/development.md). the small
-[configuration reader](examples/configuration.py) combines optional section
+[configuration reader](docs/configuration.md) combines optional section
 boundaries with Result errors and processes a section in one pass.
 
 names and callback order follow Rust's [Option], [Result], and [Iterator],
