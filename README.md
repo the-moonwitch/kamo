@@ -177,9 +177,9 @@ the initial [Rust-inspired vocabulary][rust-iterator] includes:
 - adapters: `map`, `filter`, `filter_map`, `flat_map`, `flatten`, `take`, `skip`,
   `take_while`, `skip_while`, `scan`, `peekable`, `chain`, `zip`, `enumerate`,
   and `inspect`.
-- consumers: `collect`, `nth`, `fold`, `reduce`, `find`, `find_map`, `any`,
-  `all`, and `for_each`. collect returns a list; Python's `list`, `tuple`,
-  and other iterable consumers also work directly.
+- consumers: `collect`, `count`, `last`, `nth`, `fold`, `reduce`, `find`,
+  `position`, `find_map`, `any`, `all`, and `for_each`. collect returns a list;
+  Python's `list`, `tuple`, and other iterable consumers also work directly.
 - fallible consumers: `collect_result`, `collect_option`, `try_fold`, and
   `try_for_each`. folds and visits use Result-returning callbacks; a successful
   visit returns `Ok(None)`.
@@ -190,6 +190,22 @@ returns the first present callback result without replacing its wrapper.
 false and true respectively on empty input. `fold` and `try_fold` take the initial
 accumulator before the callback. `enumerate` accepts a starting index; `chain`
 can widen the item type.
+
+`count()` and `last()` consume all remaining items, running upstream callbacks
+with constant extra memory. empty input gives 0 and Nothing respectively;
+`last()` preserves Some(None). `position(predicate)` consumes through the first
+match and leaves later items unread. its zero-based index starts at the current
+cursor on each call; no match gives Nothing.
+
+```python
+from kamo import Iter, Some
+
+values = Iter([1, 2, 3, 4])
+assert values.position(lambda value: value >= 2) == Some(1)
+assert values.position(lambda value: value == 3) == Some(0)
+assert values.last() == Some(4)
+assert values.count() == 0
+```
 
 fallible consumers stop on the first Err or Nothing and leave later items unread.
 an Err is returned unchanged. collecting an empty stream succeeds with `Ok([])`

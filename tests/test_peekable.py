@@ -181,3 +181,22 @@ def test_integer_tokenizer_retains_delimiters_and_expected_failures() -> None:
     assert characters.peek() == Some("?")
     assert characters.collect() == ["?"]
     assert integer(characters) == Err("expected an integer")
+
+
+def test_count_last_and_position_include_the_buffered_item() -> None:
+    values = Peekable([None, 1, 2])
+    assert values.peek() == Some(None)
+    assert values.count() == 3
+    assert values.peek() is Nothing
+
+    values = Peekable([None])
+    assert values.peek() == Some(None)
+    assert values.last() == Some(None)
+    assert values.last() is Nothing
+
+    values = Peekable([None, 1, 2])
+    assert values.peek() == Some(None)
+    assert values.position(lambda value: value is None) == Some(0)
+    assert values.peek() == Some(1)
+    assert values.position(lambda value: value == 2) == Some(1)
+    assert values.peek() is Nothing

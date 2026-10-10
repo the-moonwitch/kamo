@@ -406,3 +406,99 @@ def test_prefix_scan_and_nth_sequence_oracles(
         .collect()
         == running
     )
+
+
+def test_count_and_last_drain_the_remaining_items_and_callbacks() -> None:
+    items: list[int | None] = [None, 0, 2, None]
+    seen: list[int | None] = []
+    values = Iter(items).inspect(seen.append)
+    assert values.next() == Some(None)
+    assert values.count() == 3
+    assert seen == items
+    assert values.count() == 0
+    assert values.last() is Nothing
+
+    seen.clear()
+    values = Iter(items).inspect(seen.append)
+    assert values.next() == Some(None)
+    assert values.last() == Some(None)
+    assert seen == items
+    assert values.last() is Nothing
+    assert values.count() == 0
+
+    class NoHint(Iter[int]):
+        def __length_hint__(self) -> int:
+            raise AssertionError("a hint cannot replace consumption")
+
+    assert NoHint([1, 2, 3]).count() == 3
+    assert NoHint([1, 2, 3]).last() == Some(3)
+
+
+def test_position_consumes_the_match_and_restarts_its_index() -> None:
+    seen: list[int] = []
+    values = Iter(count()).inspect(seen.append)
+    assert values.position(lambda value: value == 2) == Some(2)
+    assert seen == [0, 1, 2]
+    assert values.position(lambda value: value == 3) == Some(0)
+    assert values.next() == Some(4)
+    assert values.position(lambda value: value == 6) == Some(1)
+    assert values.next() == Some(7)
+    assert seen == list(range(8))
+    assert Iter([None]).position(lambda value: value is None) == Some(0)
+    assert Iter([0]).position(lambda value: value != 0) is Nothing
+
+
+def test_consumers_propagate_source_and_position_predicate_errors() -> None:
+    error: Exception = ValueError("source failed")
+
+    def source() -> Iterator[int]:
+        yield 1
+        raise error
+
+    operations: tuple[Callable[[Iter[int]], object], ...] = (
+        lambda values: values.count(),
+        lambda values: values.last(),
+        lambda values: values.position(lambda value: False),
+    )
+    for operation in operations:
+        for advance in (False, True):
+            values = Iter(source())
+            if advance:
+                assert values.next() == Some(1)
+            with pytest.raises(ValueError) as caught:
+                operation(values)
+            assert caught.value is error
+
+    def fail(value: int) -> bool:
+        raise error
+
+    for predicate_error in (error, StopIteration("predicate stopped")):
+        error = predicate_error
+        values = Iter([1, 2])
+        with pytest.raises(type(error)) as predicate_caught:
+            values.position(fail)
+        assert predicate_caught.value is error
+        assert values.next() == Some(2)
+
+
+@given(
+    st.lists(st.one_of(st.none(), st.integers())),
+    st.integers(min_value=0, max_value=100),
+    st.one_of(st.none(), st.integers()),
+)
+def test_count_last_and_position_match_remaining_sequence_oracles(
+    items: list[int | None], skip: int, target: int | None
+) -> None:
+    remaining = items[skip:]
+    assert Iter(items).skip(skip).count() == len(remaining)
+    assert Iter(items).skip(skip).last() == (
+        Some(remaining[-1]) if remaining else Nothing
+    )
+    values = Iter(items).skip(skip)
+    if target in remaining:
+        index = remaining.index(target)
+        assert values.position(lambda value: value == target) == Some(index)
+        assert values.collect() == remaining[index + 1 :]
+    else:
+        assert values.position(lambda value: value == target) is Nothing
+        assert values.collect() == []

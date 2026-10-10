@@ -112,6 +112,24 @@ class Iter(Generic[T]):  # noqa: UP046
         """consume the remaining items into a list."""
         return list(self)
 
+    def count(self) -> int:
+        """consume and count the remaining items."""
+        total = 0
+        for _ in self:
+            total += 1
+        return total
+
+    def last(self) -> Option[T]:
+        """consume the remaining items and return the last, if present."""
+        cursor = iter(self)
+        try:
+            _last = next(cursor)
+        except StopIteration:
+            return Nothing
+        for _last in cursor:
+            pass
+        return Some(_last)
+
     def nth(self, index: int) -> Option[T]:
         """consume and return the zero-based nth remaining item."""
         remaining = islice(self, index, None)
@@ -135,6 +153,15 @@ class Iter(Generic[T]):  # noqa: UP046
         for value in self:
             if predicate(value):
                 return Some(value)
+        return Nothing
+
+    def position(self, predicate: Callable[[T], bool]) -> Option[int]:
+        """consume through a match; return its zero-based remaining index."""
+        index = 0
+        for value in self:
+            if predicate(value):
+                return Some(index)
+            index += 1  # noqa: SIM113 - measured faster with the JIT.
         return Nothing
 
     def find_map[O: Option[object]](
