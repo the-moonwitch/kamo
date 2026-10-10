@@ -182,6 +182,31 @@ class Some(_Option[T]):
     def to_optional(self) -> T:
         return self.value
 
+    def ok_or(self, error: object) -> _result.Ok[T]:
+        return _result.Ok(self.value)
+
+    def ok_or_else[E](self, error: Callable[[], E]) -> _result.Ok[T]:
+        return _result.Ok(self.value)
+
+    @overload
+    def transpose[U](self: Some[_result.Ok[U]]) -> _result.Ok[Some[U]]: ...
+
+    @overload
+    def transpose[E](self: Some[_result.Err[E]]) -> _result.Err[E]: ...
+
+    @overload
+    def transpose[U, E](
+        self: Some[_result.Result[U, E]],
+    ) -> _result.Result[Some[U], E]: ...
+
+    def transpose[U, E](
+        self: Some[_result.Result[U, E]],
+    ) -> _result.Result[Some[U], E]:
+        result = self.value
+        return (
+            _result.Ok(Some(result.value)) if result.is_ok is True else result
+        )
+
     def map[U](self, function: Callable[[T], U]) -> Some[U]:
         return Some(function(self.value))
 
@@ -286,6 +311,15 @@ class _Nothing(_Option[Never]):
     def __repr__(self) -> str:
         return "Nothing"
 
+    def ok_or[E](self, error: E) -> _result.Err[E]:
+        return _result.Err(error)
+
+    def ok_or_else[E](self, error: Callable[[], E]) -> _result.Err[E]:
+        return _result.Err(error())
+
+    def transpose(self) -> _result.Ok[Self]:
+        return _result.Ok(self)
+
     # native constant hooks avoid Python frames and speculative list capacity.
     __bool__ = False.__bool__
     __iter__ = ().__iter__
@@ -315,3 +349,8 @@ Nothing = _Nothing()
 NothingType = _Nothing
 _nothing_hash = hash(())
 _nothing_pair = (Nothing, Nothing)
+
+
+# the variants must exist before Result imports Option; methods resolve this
+# module only when called, without importing constructors on every conversion.
+from kamo import result as _result  # noqa: E402

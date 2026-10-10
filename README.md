@@ -40,7 +40,7 @@ receives both values and is skipped if either option is Nothing.
 `and_` and `or_` avoid Python keywords; `or_else` takes a lazy factory.
 `unwrap` and `expect` raise `ValueError` on Nothing. fallback types can widen:
 calling `.unwrap_or("missing")` on an `Option[int]` returns `int | str`.
-borrowing, mutation, and Option-to-Result Rust methods are deferred.
+borrowing and mutation have no direct equivalent in this API.
 
 `map_or(default, function)` returns the mapped payload directly, avoiding an
 intermediate Some when consuming the result. `map_or_else` also makes the
@@ -119,6 +119,21 @@ matching; `Nothing` remains the shared absence value. Result's `transpose()`
 turns `Ok(Some(value))` into `Some(Ok(value))`, `Ok(Nothing)` into Nothing,
 and `Err(error)` into `Some(Err(error))`.
 
+Option's `ok_or(error)` converts presence to Ok and absence to Err;
+`ok_or_else(factory)` creates the error only on absence. Option's `transpose()`
+turns `Some(Ok(value))` into `Ok(Some(value))`, `Some(Err(error))` into the
+existing Err, and Nothing into `Ok(Nothing)`. the two transpose operations are
+inverses, including when the payload is None.
+
+```python
+from kamo import Err, Nothing, Ok, Some
+
+assert Some(None).ok_or("missing") == Ok(None)
+assert Nothing.ok_or_else(lambda: "missing") == Err("missing")
+assert Some(Ok(None)).transpose() == Ok(Some(None))
+assert Nothing.transpose() == Ok(Nothing)
+```
+
 [rust-result]: https://doc.rust-lang.org/std/result/enum.Result.html
 
 ```python
@@ -160,10 +175,11 @@ Option wrappers for each item.
 the initial [Rust-inspired vocabulary][rust-iterator] includes:
 
 - adapters: `map`, `filter`, `filter_map`, `flat_map`, `flatten`, `take`, `skip`,
-  `chain`, `zip`, `enumerate`, and `inspect`.
-- consumers: `collect`, `fold`, `reduce`, `find`, `find_map`, `any`, `all`, and
-  `for_each`. collect returns a list; Python's `list`, `tuple`, and other iterable
-  consumers also work directly.
+  `take_while`, `skip_while`, `scan`, `peekable`, `chain`, `zip`, `enumerate`,
+  and `inspect`.
+- consumers: `collect`, `nth`, `fold`, `reduce`, `find`, `find_map`, `any`,
+  `all`, and `for_each`. collect returns a list; Python's `list`, `tuple`,
+  and other iterable consumers also work directly.
 - fallible consumers: `collect_result`, `collect_option`, `try_fold`, and
   `try_for_each`. folds and visits use Result-returning callbacks; a successful
   visit returns `Ok(None)`.
@@ -189,6 +205,62 @@ present outputs. take and skip require nonnegative counts accepted by
 consume one extra item from the left before discovering the right is exhausted.
 annotate mixed variant collections as `list[Option[T]]` or `list[Result[T, E]]`
 when a checker cannot infer their union.
+
+`take_while(predicate)` consumes the first rejected item and ends;
+`skip_while(predicate)` yields that item and stops testing later items.
+`nth(index)` consumes the skipped items and the selected item, returning Nothing
+if exhausted. indices follow the same nonnegative bounds as skip.
+
+`scan(initial, function)` passes state and an input to the callback, which
+returns `(new_state, Option[output])`. this supports immutable state without a
+mutable reference wrapper. Some(None) yields None; Nothing ends the scan
+permanently and leaves later inputs unread. the initial state is not yielded.
+
+```python
+from kamo import Iter, Some
+
+assert Iter([1, 2, 3]).scan(
+    0, lambda total, value: (total + value, Some(total + value))
+).collect() == [1, 3, 6]
+```
+
+`Peekable[T]` adds one cached item of lookahead. construct it directly or use
+`Iter(...).peekable()`. it shares Iter's combinators and is also a Python
+iterator: `iter(values) is values`, `next(values)` returns a raw item, and
+`values.next()` returns an Option. repeated `peek()` calls reuse the same Some;
+consuming a buffered item with `.next()` or a successful conditional operation
+also reuses it. ordinary Python traversal creates no Option wrappers per item.
+
+`peek()` requests the next source item once, including upstream callbacks, and
+retains it for consumption. `next_if(predicate)` and `next_if_eq(value)` consume
+only on acceptance. rejection or a callback exception retains the item;
+exhaustion is cached permanently. derived pipelines and Python iteration use the
+same buffer. after adding lookahead, consume through the Peekable or its derived
+pipelines; an upstream alias bypasses that buffer. the caller still owns source
+resources.
+
+this small tokenizer reads an integer prefix while retaining its delimiter:
+
+```python
+from kamo import Iter, Ok, Peekable, Result, Some
+
+
+def integer(characters: Peekable[str]) -> Result[int, str]:
+    first = characters.next_if(str.isdecimal).ok_or("expected an integer")
+    if first.is_err is True:
+        return first
+    digits = [first.value]
+    while (digit := characters.next_if(str.isdecimal)).is_some is True:
+        digits.append(digit.value)
+    return Ok(int("".join(digits)))
+
+
+characters = Iter("12+34").peekable()
+assert integer(characters) == Ok(12)
+assert characters.peek() == Some("+")
+assert characters.next_if_eq("+") == Some("+")
+assert integer(characters) == Ok(34)
+```
 
 [rust-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 

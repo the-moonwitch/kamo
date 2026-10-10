@@ -2,7 +2,7 @@
 
 from importlib.metadata import version
 
-from kamo.iter import Iter
+from kamo.iter import Iter, Peekable
 from kamo.option import Nothing, NothingType, Option, Some, from_optional
 from kamo.result import Err, Ok, Result
 
@@ -15,6 +15,7 @@ __all__ = [
     "NothingType",
     "Ok",
     "Option",
+    "Peekable",
     "Result",
     "Some",
     "__version__",

@@ -229,6 +229,8 @@ def test_callback_errors_are_not_converted_to_results() -> None:
     operations: list[Callable[[], object]] = [
         lambda: Iter([1]).map(fail).collect(),
         lambda: Iter([1]).filter(fail).collect(),
+        lambda: Iter([1]).take_while(fail).collect(),
+        lambda: Iter([1]).skip_while(fail).collect(),
         lambda: Iter([1]).filter_map(fail_option).collect(),
         lambda: Iter([1]).flat_map(fail_iterable).collect(),
         lambda: Iter([1]).inspect(fail).collect(),
@@ -309,4 +311,98 @@ def test_fallible_collection_matches_first_failure_oracle(
     )
     assert Iter(results).collect_result() == (
         Err("missing") if None in values else Ok(successes)
+    )
+
+
+def test_prefix_adapters_and_nth_share_the_remaining_cursor() -> None:
+    calls: list[int] = []
+
+    def below_three(value: int) -> bool:
+        calls.append(value)
+        return value < 3
+
+    values = Iter(range(6))
+    prefix = values.take_while(below_three)
+    assert calls == []
+    assert prefix.collect() == [0, 1, 2]
+    assert calls == [0, 1, 2, 3]
+    assert values.next() == Some(4)
+    assert prefix.next() is Nothing
+    assert values.next() == Some(5)
+
+    calls.clear()
+    values = Iter([0, 1, 3, 2, 4])
+    suffix = values.skip_while(below_three)
+    assert calls == []
+    assert suffix.collect() == [3, 2, 4]
+    assert calls == [0, 1, 3]
+    assert Iter(count()).skip_while(lambda x: x < 5).take(2).collect() == [
+        5,
+        6,
+    ]
+
+    optional_values = Iter([None, 1, 2, 3])
+    with pytest.raises(ValueError):
+        optional_values.nth(-1)
+    assert optional_values.nth(0) == Some(None)
+    assert optional_values.nth(1) == Some(2)
+    assert optional_values.next() == Some(3)
+    assert optional_values.nth(100) is Nothing
+
+
+def test_scan_state_laziness_termination_and_errors() -> None:
+    calls: list[tuple[int, int]] = []
+
+    def accumulate(total: int, value: int) -> tuple[int, Option[int | None]]:
+        calls.append((total, value))
+        total += value
+        return total, Some(
+            None if total == 1 else total
+        ) if total < 6 else Nothing
+
+    values = Iter([1, 2, 3, 4])
+    running = values.scan(0, accumulate)
+    assert calls == []
+    assert running.next() == Some(None)
+    assert running.collect() == [3]
+    assert calls == [(0, 1), (1, 2), (3, 3)]
+    assert running.next() is Nothing
+    assert values.collect() == [4]
+    assert Iter[int]([]).scan(0, accumulate).collect() == []
+
+    def fail(total: int, value: int) -> tuple[int, Option[int]]:
+        raise ValueError("scan failed")
+
+    values = Iter([1, 2])
+    with pytest.raises(ValueError, match="scan failed"):
+        values.scan(0, fail).collect()
+    assert values.collect() == [2]
+
+
+@given(st.lists(st.integers()), st.integers(min_value=0, max_value=100))
+def test_prefix_scan_and_nth_sequence_oracles(
+    items: list[int], index: int
+) -> None:
+    split = next((i for i, value in enumerate(items) if value < 0), len(items))
+    assert (
+        Iter(items).take_while(lambda value: value >= 0).collect()
+        == items[:split]
+    )
+    assert (
+        Iter(items).skip_while(lambda value: value >= 0).collect()
+        == items[split:]
+    )
+    assert Iter(items).nth(index) == (
+        Some(items[index]) if index < len(items) else Nothing
+    )
+    running: list[int] = []
+    total = 0
+    for value in items:
+        total += value
+        running.append(total)
+    assert (
+        Iter(items)
+        .scan(0, lambda total, value: (total + value, Some(total + value)))
+        .collect()
+        == running
     )

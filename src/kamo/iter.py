@@ -2,14 +2,14 @@
 
 from collections.abc import Callable, Iterable, Iterator
 from functools import reduce
-from itertools import chain, islice
+from itertools import chain, dropwhile, islice, takewhile
 from operator import length_hint
 from typing import Generic, Never, TypeVar, final, overload
 
 from kamo.option import Nothing, NothingType, Option, Some
 from kamo.result import Err, Ok, Result
 
-__all__ = ["Iter"]
+__all__ = ["Iter", "Peekable"]
 
 T = TypeVar("T", covariant=True)
 U = TypeVar("U")
@@ -18,7 +18,6 @@ E = TypeVar("E", default=Never)
 
 
 # explicit covariance preserves item relationships in all supported checkers.
-@final
 class Iter(Generic[T]):  # noqa: UP046
     """a fluent iterable sharing one cursor with its derived pipelines."""
 
@@ -42,10 +41,10 @@ class Iter(Generic[T]):  # noqa: UP046
         return Some(value)
 
     def map[U](self, function: Callable[[T], U]) -> Iter[U]:
-        return Iter(map(function, self._iterator))
+        return Iter(map(function, self))
 
     def filter(self, predicate: Callable[[T], bool]) -> Iter[T]:
-        return Iter(filter(predicate, self._iterator))
+        return Iter(filter(predicate, self))
 
     @overload
     def filter_map(
@@ -56,48 +55,84 @@ class Iter(Generic[T]):  # noqa: UP046
     def filter_map[U](self, function: Callable[[T], Option[U]]) -> Iter[U]: ...
 
     def filter_map[U](self, function: Callable[[T], Option[U]]) -> Iter[U]:
-        return Iter(_filter_map(self._iterator, function))
+        return Iter(_filter_map(self, function))
 
     def flat_map[U](self, function: Callable[[T], Iterable[U]]) -> Iter[U]:
-        return Iter(chain.from_iterable(map(function, self._iterator)))
+        return Iter(chain.from_iterable(map(function, self)))
 
     def flatten[U](self: Iter[Iterable[U]]) -> Iter[U]:
-        return Iter(chain.from_iterable(self._iterator))
+        return Iter(chain.from_iterable(self))
 
     def take(self, count: int) -> Iter[T]:
-        return Iter(islice(self._iterator, count))
+        return Iter(islice(self, count))
 
     def skip(self, count: int) -> Iter[T]:
-        return Iter(islice(self._iterator, count, None))
+        return Iter(islice(self, count, None))
+
+    def take_while(self, predicate: Callable[[T], bool]) -> Iter[T]:
+        """yield a prefix, consuming the first item failing the predicate."""
+        return Iter(takewhile(predicate, self))
+
+    def skip_while(self, predicate: Callable[[T], bool]) -> Iter[T]:
+        return Iter(dropwhile(predicate, self))
+
+    @overload
+    def scan[S](
+        self, initial: S, function: Callable[[S, T], tuple[S, NothingType]]
+    ) -> Iter[Never]: ...
+
+    @overload
+    def scan[S, U](
+        self, initial: S, function: Callable[[S, T], tuple[S, Option[U]]]
+    ) -> Iter[U]: ...
+
+    def scan[S, U](
+        self, initial: S, function: Callable[[S, T], tuple[S, Option[U]]]
+    ) -> Iter[U]:
+        """yield stateful outputs until Nothing; leave later inputs unread."""
+        return Iter(_scan(self, initial, function))
+
+    def peekable(self) -> Peekable[T]:
+        """give the remaining cursor a single item of lookahead."""
+        return Peekable(self)
 
     def chain[U](self, other: Iterable[U]) -> Iter[T | U]:
-        return Iter(chain(self._iterator, other))
+        return Iter(chain(self, other))
 
     def zip[U](self, other: Iterable[U]) -> Iter[tuple[T, U]]:
-        return Iter(zip(self._iterator, other, strict=False))
+        return Iter(zip(self, other, strict=False))
 
     def enumerate(self, start: int = 0) -> Iter[tuple[int, T]]:
-        return Iter(enumerate(self._iterator, start))
+        return Iter(enumerate(self, start))
 
     def inspect(self, function: Callable[[T], object]) -> Iter[T]:
-        return Iter(_inspect(self._iterator, function))
+        return Iter(_inspect(self, function))
 
     def collect(self) -> list[T]:
         """consume the remaining items into a list."""
-        return list(self._iterator)
+        return list(self)
+
+    def nth(self, index: int) -> Option[T]:
+        """consume and return the zero-based nth remaining item."""
+        remaining = islice(self, index, None)
+        try:
+            value = next(remaining)
+        except StopIteration:
+            return Nothing
+        return Some(value)
 
     def fold[U](self, initial: U, function: Callable[[U, T], U]) -> U:
-        return reduce(function, self._iterator, initial)
+        return reduce(function, self, initial)
 
     def reduce(self, function: Callable[[T, T], T]) -> Option[T]:
         try:
-            initial = next(self._iterator)
+            initial = next(iter(self))
         except StopIteration:
             return Nothing
-        return Some(reduce(function, self._iterator, initial))
+        return Some(reduce(function, self, initial))
 
     def find(self, predicate: Callable[[T], bool]) -> Option[T]:
-        for value in self._iterator:
+        for value in self:
             if predicate(value):
                 return Some(value)
         return Nothing
@@ -105,20 +140,20 @@ class Iter(Generic[T]):  # noqa: UP046
     def find_map[O: Option[object]](
         self, function: Callable[[T], O]
     ) -> O | NothingType:
-        for value in self._iterator:
+        for value in self:
             result = function(value)
             if result.is_some:
                 return result
         return Nothing
 
     def any(self, predicate: Callable[[T], bool]) -> bool:
-        return any(map(predicate, self._iterator))
+        return any(map(predicate, self))
 
     def all(self, predicate: Callable[[T], bool]) -> bool:
-        return all(map(predicate, self._iterator))
+        return all(map(predicate, self))
 
     def for_each(self, function: Callable[[T], object]) -> None:
-        for value in self._iterator:
+        for value in self:
             function(value)
 
     @overload
@@ -132,7 +167,7 @@ class Iter(Generic[T]):  # noqa: UP046
 
     def collect_option[U](self: Iter[Option[U]]) -> Option[list[U]]:
         values: list[U] = []
-        for result in self._iterator:
+        for result in self:
             if result.is_some is True:
                 values.append(result.value)
             else:
@@ -152,7 +187,7 @@ class Iter(Generic[T]):  # noqa: UP046
 
     def collect_result[U, E](self: Iter[Result[U, E]]) -> Result[list[U], E]:
         values: list[U] = []
-        for result in self._iterator:
+        for result in self:
             if result.is_ok is True:
                 values.append(result.value)
             else:
@@ -163,7 +198,7 @@ class Iter(Generic[T]):  # noqa: UP046
         self, initial: U, function: Callable[[U, T], Result[U, E]]
     ) -> Result[U, E]:
         """fold until the callback returns Err; leave later items unread."""
-        for value in self._iterator:
+        for value in self:
             result = function(initial, value)
             if result.is_ok is True:
                 initial = result.value
@@ -174,7 +209,7 @@ class Iter(Generic[T]):  # noqa: UP046
     def try_for_each[R: Result[None, object]](
         self, function: Callable[[T], R]
     ) -> R | Ok[None]:
-        for value in self._iterator:
+        for value in self:
             result = function(value)
             if result.is_err is True:
                 return result
@@ -182,7 +217,7 @@ class Iter(Generic[T]):  # noqa: UP046
 
 
 def _filter_map[T, U](
-    source: Iterator[T], function: Callable[[T], Option[U]]
+    source: Iterable[T], function: Callable[[T], Option[U]]
 ) -> Iterator[U]:
     for value in source:
         result = function(value)
@@ -191,8 +226,101 @@ def _filter_map[T, U](
 
 
 def _inspect[T](
-    source: Iterator[T], function: Callable[[T], object]
+    source: Iterable[T], function: Callable[[T], object]
 ) -> Iterator[T]:
     for value in source:
         function(value)
         yield value
+
+
+def _scan[T, S, U](
+    source: Iterable[T],
+    state: S,
+    function: Callable[[S, T], tuple[S, Option[U]]],
+) -> Iterator[U]:
+    for value in source:
+        state, result = function(state, value)
+        if result.is_some is True:
+            yield result.value
+        else:
+            return
+
+
+@final
+class Peekable(Iter[T]):
+    """a Python iterator with cached lookahead and conditional consumption."""
+
+    __slots__ = ("_buffer",)
+
+    def __init__(self, iterable: Iterable[T]) -> None:
+        super().__init__(iterable)
+        # None means unfilled; Nothing means exhausted; Some(None) is an item.
+        self._buffer: Option[T] | None = None
+
+    def __iter__(self) -> Peekable[T]:
+        return self
+
+    def __next__(self) -> T:
+        buffered = self._buffer
+        if buffered is None:
+            try:
+                return next(self._iterator)
+            except StopIteration:
+                self._buffer = Nothing
+                raise
+        if buffered.is_some is True:
+            self._buffer = None
+            return buffered.value
+        raise StopIteration
+
+    def __length_hint__(self) -> int:
+        buffered = self._buffer
+        if buffered is None:
+            return length_hint(self._iterator)
+        if buffered.is_some:
+            return length_hint(self._iterator) + 1
+        return 0
+
+    def peek(self) -> Option[T]:
+        """observe the next item, pulling it from the source only once."""
+        buffered = self._buffer
+        if buffered is None:
+            try:
+                value = next(self._iterator)
+            except StopIteration:
+                buffered = Nothing
+            else:
+                buffered = Some(value)
+            self._buffer = buffered
+        return buffered
+
+    def next(self) -> Option[T]:
+        buffered = self._buffer
+        if buffered is None:
+            try:
+                value = next(self._iterator)
+            except StopIteration:
+                self._buffer = Nothing
+                return Nothing
+            return Some(value)
+        if buffered.is_some:
+            self._buffer = None
+        return buffered
+
+    def next_if(self, predicate: Callable[[T], bool]) -> Option[T]:
+        """consume only on acceptance; callback errors retain the item."""
+        buffered = self.peek()
+        if buffered.is_some is True and predicate(buffered.value):
+            self._buffer = None
+            return buffered
+        return Nothing
+
+    def next_if_eq(self, expected: object) -> Option[T]:
+        buffered = self.peek()
+        if buffered.is_some is True and buffered.value == expected:
+            self._buffer = None
+            return buffered
+        return Nothing
+
+    def peekable(self) -> Peekable[T]:
+        return self

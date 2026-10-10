@@ -83,3 +83,33 @@ def test_public_types() -> None:
         return values
 
     assert_type(covariant(Iter([1])), Iter[object])
+
+
+def test_lookahead_and_state_types() -> None:
+    from kamo import Peekable
+
+    values = Iter([1, 2]).peekable()
+    assert_type(values, Peekable[int])
+    assert_type(values.peek(), Option[int])
+    assert_type(values.next_if(lambda value: value > 0), Option[int])
+    assert_type(values.next_if_eq(None), Option[int])
+    assert_type(values.map(str), Iter[str])
+    assert_type(values.nth(0), Option[int])
+    assert_type(values.take_while(lambda value: True), Iter[int])
+    assert_type(values.skip_while(lambda value: False), Iter[int])
+    assert_type(
+        values.scan(0, lambda total, value: (total + value, Some(str(total)))),
+        Iter[str],
+    )
+    assert_type(
+        values.scan(0, lambda total, value: (total, Nothing)), Iter[Never]
+    )
+
+    def widen(values: Iter[object]) -> Iter[object]:
+        return values
+
+    def lookahead(values: Peekable[object]) -> Peekable[object]:
+        return values
+
+    assert_type(widen(Peekable([1])), Iter[object])
+    assert_type(lookahead(Peekable([1])), Peekable[object])
