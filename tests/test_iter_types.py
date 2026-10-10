@@ -11,6 +11,12 @@ def test_public_types() -> None:
     assert_type(numbers.map(str), Iter[str])
     assert_type(numbers.filter(lambda value: value > 0), Iter[int])
     assert_type(numbers.filter_map(lambda value: Some(str(value))), Iter[str])
+    assert_type(numbers.map_while(lambda value: Some(str(value))), Iter[str])
+    assert_type(numbers.map_while(lambda value: Nothing), Iter[Never])
+    assert_type(Iter([None]).map_while(Some), Iter[None])
+    assert_type(
+        numbers.partition(lambda value: value > 0), tuple[list[int], list[int]]
+    )
     assert_type(numbers.flat_map(lambda value: [str(value)]), Iter[str])
     assert_type(Iter([[1], [2]]).flatten(), Iter[int])
     assert_type(numbers.take(2).skip(1), Iter[int])
@@ -99,6 +105,10 @@ def test_lookahead_and_state_types() -> None:
     assert_type(values.next_if_eq(None), Option[int])
     assert_type(values.map(str), Iter[str])
     assert_type(values.nth(0), Option[int])
+    assert_type(values.map_while(lambda value: Some(str(value))), Iter[str])
+    assert_type(
+        values.partition(lambda value: value > 0), tuple[list[int], list[int]]
+    )
     assert_type(values.count(), int)
     assert_type(values.last(), Option[int])
     assert_type(values.position(lambda value: value > 0), Option[int])

@@ -200,3 +200,14 @@ def test_count_last_and_position_include_the_buffered_item() -> None:
     assert values.peek() == Some(1)
     assert values.position(lambda value: value == 2) == Some(1)
     assert values.peek() is Nothing
+
+
+def test_map_while_and_partition_include_buffered_items() -> None:
+    values = Peekable([None, 0, 1, 2])
+    assert values.peek() == Some(None)
+    assert values.map_while(
+        lambda value: Nothing if value == 1 else Some(value)
+    ).collect() == [None, 0]
+    assert values.peek() == Some(2)
+    assert values.partition(lambda value: value == 2) == ([2], [])
+    assert values.peek() is Nothing

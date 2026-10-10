@@ -174,18 +174,30 @@ Option wrappers for each item.
 
 the initial [Rust-inspired vocabulary][rust-iterator] includes:
 
-- adapters: `map`, `filter`, `filter_map`, `flat_map`, `flatten`, `take`, `skip`,
-  `take_while`, `skip_while`, `scan`, `peekable`, `chain`, `zip`, `enumerate`,
-  and `inspect`.
-- consumers: `collect`, `count`, `last`, `nth`, `fold`, `reduce`, `find`,
-  `position`, `find_map`, `any`, `all`, and `for_each`. collect returns a list;
-  Python's `list`, `tuple`, and other iterable consumers also work directly.
+- adapters: `map`, `filter`, `filter_map`, `map_while`, `flat_map`, `flatten`,
+  `take`, `skip`, `take_while`, `skip_while`, `scan`, `peekable`, `chain`, `zip`,
+  `enumerate`, and `inspect`.
+- consumers: `collect`, `partition`, `count`, `last`, `nth`, `fold`, `reduce`,
+  `find`, `position`, `find_map`, `any`, `all`, and `for_each`. collect returns
+  a list; Python's `list`, `tuple`, and other iterable consumers also work
+  directly.
 - fallible consumers: `collect_result`, `collect_option`, `try_fold`, and
   `try_for_each`. folds and visits use Result-returning callbacks; a successful
   visit returns `Ok(None)`.
 
 `filter_map` keeps present callback results, including Some(None); `find_map`
 returns the first present callback result without replacing its wrapper.
+`map_while` yields present callback outputs until the first Nothing, consuming
+that stopping input and leaving later source items unread. Some(None) yields
+None. its adapter then stays exhausted permanently; Rust's corresponding
+[map_while](https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.map_while)
+leaves behavior after the first absence unspecified.
+
+`partition(predicate)` consumes into `(matching, rejected)` lists. each list
+preserves input order, and each item is tested once. empty input returns two
+distinct empty lists. partition accepts the same boolean predicates as filter;
+the item type is retained in both lists.
+
 `reduce` returns Nothing on empty input. `any` and `all` take predicates, with
 false and true respectively on empty input. `fold` and `try_fold` take the initial
 accumulator before the callback. `enumerate` accepts a starting index; `chain`
@@ -205,6 +217,27 @@ assert values.position(lambda value: value >= 2) == Some(1)
 assert values.position(lambda value: value == 3) == Some(0)
 assert values.last() == Some(4)
 assert values.count() == 0
+```
+
+the [configuration example](examples/configuration.py) combines Option-returning
+prefix parsing, Result errors, and partition. it reads a blank-line-delimited
+section of `key=value` entries. keys must be nonempty; values may be empty and
+contain `=`. duplicate keys use their last value, invalid entries are retained
+as errors, and the next section remains unread. the caller owns the stream.
+
+```python
+from io import StringIO
+
+from examples.configuration import read_section
+from kamo import Iter
+
+with StringIO("port=8080\nbroken\n\nnext=yes\n") as source:
+    lines = Iter(source)
+    assert read_section(lines) == (
+        {"port": "8080"},
+        ["invalid entry: 'broken'"],
+    )
+    assert read_section(lines) == ({"next": "yes"}, [])
 ```
 
 fallible consumers stop on the first Err or Nothing and leave later items unread.

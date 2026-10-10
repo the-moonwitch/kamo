@@ -502,3 +502,99 @@ def test_count_last_and_position_match_remaining_sequence_oracles(
     else:
         assert values.position(lambda value: value == target) is Nothing
         assert values.collect() == []
+
+
+def test_map_while_is_lazy_and_stops_permanently_at_absence() -> None:
+    calls: list[int] = []
+
+    def choose(value: int) -> Option[int | None]:
+        calls.append(value)
+        return Nothing if value == 2 else Some(None if value == 0 else value)
+
+    values = Iter(range(4))
+    prefix = values.map_while(choose)
+    assert calls == []
+    assert prefix.collect() == [None, 1]
+    assert calls == [0, 1, 2]
+    assert prefix.next() is Nothing
+    assert prefix.collect() == []
+    assert calls == [0, 1, 2]
+    assert values.next() == Some(3)
+    assert Iter([1, 2]).map_while(lambda value: Nothing).collect() == []
+    assert Iter[int]([]).map_while(choose).next() is Nothing
+    assert calls == [0, 1, 2]
+
+
+def test_partition_preserves_order_and_calls_the_predicate_once() -> None:
+    seen: list[int | None] = []
+
+    def present(value: int | None) -> bool:
+        seen.append(value)
+        return value is not None
+
+    items: list[int | None] = [99, None, 0, None, 2, 0]
+    values = Iter(items)
+    assert values.next() == Some(99)
+    assert values.partition(present) == ([0, 2, 0], [None, None])
+    assert seen == items[1:]
+    accepted, rejected = values.partition(present)
+    assert accepted == rejected == []
+    assert accepted is not rejected
+    assert seen == items[1:]
+
+
+def test_map_while_and_partition_errors_preserve_later_inputs() -> None:
+    error = ValueError("callback failed")
+
+    def fail(value: int) -> Never:
+        raise error
+
+    values = Iter([1, 2])
+    prefix = values.map_while(fail)
+    with pytest.raises(ValueError) as caught:
+        prefix.next()
+    assert caught.value is error
+    assert prefix.next() is Nothing
+    assert values.next() == Some(2)
+
+    values = Iter([1, 2])
+    with pytest.raises(ValueError) as caught:
+        values.partition(fail)
+    assert caught.value is error
+    assert values.next() == Some(2)
+
+    def stop(value: int) -> Never:
+        raise StopIteration("callback stopped")
+
+    with pytest.raises(RuntimeError, match="generator raised StopIteration"):
+        Iter([1]).map_while(stop).next()
+    with pytest.raises(StopIteration, match="callback stopped"):
+        Iter([1]).partition(stop)
+
+    def source() -> Iterator[int]:
+        yield 1
+        raise error
+
+    with pytest.raises(ValueError) as caught:
+        Iter(source()).map_while(Some).collect()
+    assert caught.value is error
+    with pytest.raises(ValueError) as caught:
+        Iter(source()).partition(lambda value: True)
+    assert caught.value is error
+
+
+@given(st.lists(st.one_of(st.none(), st.integers())))
+def test_map_while_and_partition_match_independent_sequence_oracles(
+    items: list[int | None],
+) -> None:
+    # None is a stop marker in this callback, not in the iterator itself.
+    split = items.index(None) if None in items else len(items)
+    values = Iter(items)
+    assert values.map_while(
+        lambda value: Nothing if value is None else Some(str(value))
+    ).collect() == [str(value) for value in items[:split]]
+    assert values.collect() == items[min(split + 1, len(items)) :]
+    assert Iter(items).partition(lambda value: value is None) == (
+        [value for value in items if value is None],
+        [value for value in items if value is not None],
+    )

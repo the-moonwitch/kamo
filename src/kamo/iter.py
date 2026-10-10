@@ -57,6 +57,18 @@ class Iter(Generic[T]):  # noqa: UP046
     def filter_map[U](self, function: Callable[[T], Option[U]]) -> Iter[U]:
         return Iter(_filter_map(self, function))
 
+    @overload
+    def map_while(
+        self, function: Callable[[T], NothingType]
+    ) -> Iter[Never]: ...
+
+    @overload
+    def map_while[U](self, function: Callable[[T], Option[U]]) -> Iter[U]: ...
+
+    def map_while[U](self, function: Callable[[T], Option[U]]) -> Iter[U]:
+        """yield present outputs until Nothing; leave later inputs unread."""
+        return Iter(_map_while(self, function))
+
     def flat_map[U](self, function: Callable[[T], Iterable[U]]) -> Iter[U]:
         return Iter(chain.from_iterable(map(function, self)))
 
@@ -111,6 +123,16 @@ class Iter(Generic[T]):  # noqa: UP046
     def collect(self) -> list[T]:
         """consume the remaining items into a list."""
         return list(self)
+
+    def partition(
+        self, predicate: Callable[[T], bool]
+    ) -> tuple[list[T], list[T]]:
+        """consume into matching and rejected lists, preserving their order."""
+        matching: list[T] = []
+        rejected: list[T] = []
+        for value in self:
+            (matching if predicate(value) else rejected).append(value)
+        return matching, rejected
 
     def count(self) -> int:
         """consume and count the remaining items."""
@@ -250,6 +272,17 @@ def _filter_map[T, U](
         result = function(value)
         if result.is_some is True:
             yield result.value
+
+
+def _map_while[T, U](
+    source: Iterable[T], function: Callable[[T], Option[U]]
+) -> Iterator[U]:
+    for value in source:
+        result = function(value)
+        if result.is_some is True:
+            yield result.value
+        else:
+            return
 
 
 def _inspect[T](
