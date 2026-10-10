@@ -2,6 +2,7 @@
 
 from importlib.metadata import version
 
+from kamo.iter import Iter
 from kamo.option import Nothing, NothingType, Option, Some, from_optional
 from kamo.result import Err, Ok, Result
 
@@ -9,6 +10,7 @@ __version__: str = version("kamo")
 
 __all__ = [
     "Err",
+    "Iter",
     "Nothing",
     "NothingType",
     "Ok",

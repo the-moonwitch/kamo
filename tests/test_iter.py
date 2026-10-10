@@ -1,0 +1,312 @@
+from collections.abc import Callable, Iterator
+from itertools import count
+from operator import length_hint
+from typing import Never
+
+import pytest
+from hypothesis import given
+from hypothesis import strategies as st
+
+from kamo import Err, Iter, Nothing, Ok, Option, Result, Some
+
+
+def test_pipeline_is_lazy_and_stops_without_overreading() -> None:
+    events: list[tuple[str, int]] = []
+
+    def source() -> Iterator[int]:
+        for value in range(10):
+            events.append(("read", value))
+            yield value
+
+    def increment(value: int) -> int:
+        events.append(("map", value))
+        return value + 1
+
+    def even(value: int) -> bool:
+        events.append(("filter", value))
+        return value % 2 == 0
+
+    pipeline = (
+        Iter(source())
+        .map(increment)
+        .filter(even)
+        .inspect(lambda value: events.append(("inspect", value)))
+        .take(2)
+    )
+    assert events == []
+    assert pipeline.collect() == [2, 4]
+    assert events == [
+        ("read", 0),
+        ("map", 0),
+        ("filter", 1),
+        ("read", 1),
+        ("map", 1),
+        ("filter", 2),
+        ("inspect", 2),
+        ("read", 2),
+        ("map", 2),
+        ("filter", 3),
+        ("read", 3),
+        ("map", 3),
+        ("filter", 4),
+        ("inspect", 4),
+    ]
+    assert pipeline.next() is Nothing
+    assert pipeline.collect() == []
+
+
+def test_facade_and_adapters_share_one_cursor() -> None:
+    source = Iter([None, 1, 2, 3])
+    cursor = iter(source)
+    assert iter(source) is cursor
+    assert source.next() == Some(None)
+    assert next(cursor) == 1
+    doubled = source.map(lambda value: value * 2 if value else 0)
+    assert doubled.next() == Some(4)
+    assert source.next() == Some(3)
+    assert doubled.next() is Nothing
+    assert source.next() is Nothing
+    assert list(source) == []
+    assert not isinstance(source, Iterator)
+
+
+def test_length_hint_tracks_remaining_items() -> None:
+    values = Iter([0, 1, 2])
+    assert length_hint(values) == 3
+    assert values.next() == Some(0)
+    assert length_hint(values) == 2
+    assert list(values) == [1, 2]
+    assert length_hint(values) == 0
+    assert not hasattr(values, "__dict__")
+
+
+def test_take_and_skip_boundaries() -> None:
+    values = Iter(count())
+    skipped = values.skip(3)
+    assert values.next() == Some(0)
+    assert skipped.take(2).collect() == [4, 5]
+    assert values.next() == Some(6)
+    assert values.take(0).collect() == []
+    assert values.next() == Some(7)
+    for operation in (values.take, values.skip):
+        with pytest.raises(ValueError):
+            operation(-1)
+    assert values.next() == Some(8)
+    assert Iter([1]).skip(5).next() is Nothing
+
+
+def test_filter_map_preserves_none_and_operator_order() -> None:
+    def choose(value: int) -> Option[int | None]:
+        if value == 0:
+            return Some(None)
+        return Some(value) if value % 2 == 0 else Nothing
+
+    assert Iter(range(8)).take(3).filter_map(choose).collect() == [None, 2]
+    assert Iter(range(8)).filter_map(choose).take(3).collect() == [None, 2, 4]
+
+
+def test_zip_consumption_matches_python() -> None:
+    left = Iter([1, 2, 3])
+    right = Iter(["a"])
+    assert left.zip(right).collect() == [(1, "a")]
+    # Python's zip consumes a left item before discovering the right is empty.
+    assert left.next() == Some(3)
+    assert right.next() is Nothing
+
+
+def test_fold_reduce_and_empty_values() -> None:
+    assert (
+        Iter([1, 2, 3]).fold("", lambda text, value: text + str(value))
+        == "123"
+    )
+    assert Iter[int]([]).fold(10, lambda total, value: total + value) == 10
+    assert Iter([1, 2, 3]).reduce(lambda left, right: left - right) == Some(-4)
+    assert Iter[int]([]).reduce(lambda left, right: left + right) is Nothing
+    assert Iter([None, None]).reduce(lambda left, right: left) == Some(None)
+
+
+def test_search_and_predicates_leave_the_remainder() -> None:
+    values = Iter([0, 1, 2, 3, 4])
+    assert values.find(lambda value: value > 0) == Some(1)
+    assert values.any(lambda value: value % 2 == 0)
+    assert not values.all(lambda value: value < 3)
+    assert values.collect() == [4]
+    assert not values.any(lambda value: True)
+    assert values.all(lambda value: False)
+    assert values.find(lambda value: True) is Nothing
+    selected = Some(None)
+    assert Iter([0, 1]).find_map(lambda value: selected) is selected
+    assert Iter([0, 1]).find_map(lambda value: Nothing) is Nothing
+
+
+def test_collect_result_stops_at_the_first_error() -> None:
+    error = Err({"line": 2})
+    seen: list[int] = []
+
+    def parse(value: int) -> Result[int | None, dict[str, int]]:
+        seen.append(value)
+        return error if value == 2 else Ok(None if value == 0 else value)
+
+    values = Iter(range(5)).map(parse)
+    assert values.collect_result() is error
+    assert seen == [0, 1, 2]
+    assert values.collect_result() == Ok([3, 4])
+    assert seen == [0, 1, 2, 3, 4]
+    assert values.collect_result() == Ok([])
+    assert Iter([Ok(None), Ok(False)]).collect_result() == Ok([None, False])
+
+
+def test_collect_option_stops_at_absence() -> None:
+    options: list[Option[int | None]] = [
+        Some(None),
+        Some(False),
+        Nothing,
+        Some(3),
+    ]
+    values = Iter(options)
+    assert values.collect_option() is Nothing
+    assert values.collect_option() == Some([3])
+    assert values.collect_option() == Some([])
+    assert Iter([Some(None), Some(False)]).collect_option() == Some(
+        [None, False]
+    )
+
+
+def test_fallible_consumers_retain_error_identity_and_remainder() -> None:
+    error = Err("stop")
+    calls: list[tuple[int, int]] = []
+
+    def add(total: int, value: int) -> Result[int, str]:
+        calls.append((total, value))
+        return error if value == 3 else Ok(total + value)
+
+    values = Iter(range(1, 6))
+    assert values.try_fold(0, add) is error
+    assert calls == [(0, 1), (1, 2), (3, 3)]
+    assert values.try_fold(0, add) == Ok(9)
+    assert values.try_fold(10, add) == Ok(10)
+    visits: list[int] = []
+
+    def visit(value: int) -> Result[None, str]:
+        visits.append(value)
+        return error if value == 2 else Ok(None)
+
+    values = Iter(range(5))
+    assert values.try_for_each(visit) is error
+    assert visits == [0, 1, 2]
+    assert values.try_for_each(visit) == Ok(None)
+    assert visits == [0, 1, 2, 3, 4]
+    assert values.try_for_each(visit) == Ok(None)
+
+
+def test_for_each_consumes_once_in_order() -> None:
+    visits: list[int] = []
+    inspected: list[int] = []
+    values = Iter([3, 1, 2]).inspect(inspected.append)
+    values.for_each(visits.append)
+    values.for_each(visits.append)
+    assert visits == inspected == [3, 1, 2]
+
+
+def test_callback_errors_are_not_converted_to_results() -> None:
+    error = ValueError("bug")
+
+    def fail(*values: object) -> Never:
+        raise error
+
+    def fail_option(value: int) -> Option[int]:
+        raise error
+
+    def fail_iterable(value: int) -> Iterator[int]:
+        raise error
+
+    def fail_fold(total: int, value: int) -> Result[int, str]:
+        raise error
+
+    def fail_visit(value: int) -> Result[None, str]:
+        raise error
+
+    operations: list[Callable[[], object]] = [
+        lambda: Iter([1]).map(fail).collect(),
+        lambda: Iter([1]).filter(fail).collect(),
+        lambda: Iter([1]).filter_map(fail_option).collect(),
+        lambda: Iter([1]).flat_map(fail_iterable).collect(),
+        lambda: Iter([1]).inspect(fail).collect(),
+        lambda: Iter([1]).fold(0, fail),
+        lambda: Iter([1, 2]).reduce(fail),
+        lambda: Iter([1]).find(fail),
+        lambda: Iter([1]).find_map(fail_option),
+        lambda: Iter([1]).any(fail),
+        lambda: Iter([1]).all(fail),
+        lambda: Iter([1]).for_each(fail),
+        lambda: Iter([1]).try_fold(0, fail_fold),
+        lambda: Iter([1]).try_for_each(fail_visit),
+    ]
+    for operation in operations:
+        with pytest.raises(ValueError) as caught:
+            operation()
+        assert caught.value is error
+
+
+def test_source_errors_propagate_without_becoming_absence() -> None:
+    error = RuntimeError("source failed")
+
+    def source() -> Iterator[int]:
+        yield 1
+        raise error
+
+    values = Iter(source())
+    assert values.next() == Some(1)
+    with pytest.raises(RuntimeError) as caught:
+        values.next()
+    assert caught.value is error
+
+
+@given(st.lists(st.integers()), st.integers(min_value=0, max_value=30))
+def test_lazy_composition_matches_an_eager_oracle(
+    values: list[int], limit: int
+) -> None:
+    expected = [value + 1 for value in values if (value + 1) % 2 == 0][:limit]
+    assert (
+        Iter(values)
+        .map(lambda value: value + 1)
+        .filter(lambda value: value % 2 == 0)
+        .take(limit)
+        .collect()
+    ) == expected
+    assert Iter(values).skip(limit).collect() == values[limit:]
+    assert Iter(values).fold(0, lambda total, value: total + value) == sum(
+        values
+    )
+
+
+@given(st.lists(st.lists(st.integers())), st.lists(st.text()))
+def test_expansion_and_pairing_oracles(
+    groups: list[list[int]], words: list[str]
+) -> None:
+    expected = [value for group in groups for value in group]
+    assert Iter(groups).flatten().collect() == expected
+    assert Iter(groups).flat_map(lambda group: group).collect() == expected
+    assert Iter(expected).chain(words).collect() == expected + words
+    assert Iter(words).enumerate(2).collect() == [
+        (index + 2, word) for index, word in enumerate(words)
+    ]
+
+
+@given(st.lists(st.one_of(st.none(), st.integers())))
+def test_fallible_collection_matches_first_failure_oracle(
+    values: list[int | None],
+) -> None:
+    options: list[Option[int]] = [
+        Nothing if value is None else Some(value) for value in values
+    ]
+    results: list[Result[int, str]] = [
+        Err("missing") if value is None else Ok(value) for value in values
+    ]
+    successes = [value for value in values if value is not None]
+    assert Iter(options).collect_option() == (
+        Nothing if None in values else Some(successes)
+    )
+    assert Iter(results).collect_result() == (
+        Err("missing") if None in values else Ok(successes)
+    )

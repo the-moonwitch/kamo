@@ -1,8 +1,8 @@
 # kamo
 
 a pure Python library for Rust-like Option, Result, and iterator idioms.
-Python 3.14+; no runtime dependencies. Option and Result are available;
-iterator combinators are next.
+Python 3.14+; no runtime dependencies. Option, Result, and lazy iterator
+combinators are available.
 
 ```python
 from kamo import Nothing, Option, Some, from_optional
@@ -121,6 +121,77 @@ and `Err(error)` into `Some(Err(error))`.
 
 [rust-result]: https://doc.rust-lang.org/std/result/enum.Result.html
 
+```python
+from kamo import Err, Iter, Ok, Result
+
+
+def parse(line: str) -> Result[int, str]:
+    try:
+        return Ok(int(line))
+    except ValueError:
+        return Err(line)
+
+
+assert (
+    Iter(range(10))
+    .map(lambda x: x + 1)
+    .filter(lambda x: x % 2 == 0)
+    .take(3)
+    .collect()
+) == [2, 4, 6]
+
+parsed = Iter(["1", "bad", "3"]).map(parse)
+assert parsed.collect_result() == Err("bad")
+assert parsed.collect_result() == Ok([3])
+```
+
+`Iter[T]` captures one iterator from an iterable. adapters are lazy; constructing
+a pipeline requests no items or callbacks. aliases, Python iteration, and derived
+pipelines share that cursor. consuming a list-backed Iter twice does not replay
+the list. the caller owns the source and any resources it uses.
+
+Iter is a fluent iterable facade: `iter(values)` returns the backing Python
+iterator directly, avoiding a Python forwarding call for every item. use
+`values.next()` for Rust-style `Option[T]` retrieval, or `next(iter(values))` for
+Python's value/`StopIteration` protocol. `Some(None)` remains distinct from
+exhaustion. builtins and `itertools` perform ordinary traversal without creating
+Option wrappers for each item.
+
+the initial [Rust-inspired vocabulary][rust-iterator] includes:
+
+- adapters: `map`, `filter`, `filter_map`, `flat_map`, `flatten`, `take`, `skip`,
+  `chain`, `zip`, `enumerate`, and `inspect`.
+- consumers: `collect`, `fold`, `reduce`, `find`, `find_map`, `any`, `all`, and
+  `for_each`. collect returns a list; Python's `list`, `tuple`, and other iterable
+  consumers also work directly.
+- fallible consumers: `collect_result`, `collect_option`, `try_fold`, and
+  `try_for_each`. folds and visits use Result-returning callbacks; a successful
+  visit returns `Ok(None)`.
+
+`filter_map` keeps present callback results, including Some(None); `find_map`
+returns the first present callback result without replacing its wrapper.
+`reduce` returns Nothing on empty input. `any` and `all` take predicates, with
+false and true respectively on empty input. `fold` and `try_fold` take the initial
+accumulator before the callback. `enumerate` accepts a starting index; `chain`
+can widen the item type.
+
+fallible consumers stop on the first Err or Nothing and leave later items unread.
+an Err is returned unchanged. collecting an empty stream succeeds with `Ok([])`
+or `Some([])`; an empty fallible fold succeeds with its initial accumulator.
+callback and source errors are not caught as domain failures. Python iterator
+semantics apply to `StopIteration`; generator callbacks that raise it become
+`RuntimeError`, while stdlib adapters can interpret it as exhaustion.
+
+operator order controls consumption: `take(10).filter_map(parse_optional)`
+examines at most ten inputs; `filter_map(parse_optional).take(10)` seeks ten
+present outputs. take and skip require nonnegative counts accepted by
+`itertools.islice`. zip stops at the shorter input and, like Python's zip, may
+consume one extra item from the left before discovering the right is exhausted.
+annotate mixed variant collections as `list[Option[T]]` or `list[Result[T, E]]`
+when a checker cannot infer their union.
+
+[rust-iterator]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
+
 ```sh
 mise trust
 mise install
@@ -143,8 +214,9 @@ development, runtime code, and public types target Python 3.14.
 | `mise run build` | wheel and source distribution |
 | `mise run outdated` | available dependency updates |
 
-tests cover Option and Result behavior, callback laziness, public typing, and
-map/bind laws with Hypothesis. coverage locates gaps; no threshold is enforced.
+tests cover Option and Result laws, lazy iterator composition, shared cursors,
+short-circuit consumption, callback failures, and public typing. Hypothesis
+checks independent sequence oracles. coverage locates gaps; no threshold is enforced.
 `tests/conftest.py` registers reproducible CI and larger fuzz profiles.
 
 benchmarks and profiles use the tools directly. for example:
