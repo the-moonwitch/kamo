@@ -1,6 +1,6 @@
 """read one blank-line-delimited section of key=value entries."""
 
-from kamo import Err, Iter, Nothing, Ok, Option, Result, Some
+from kamokamo import Err, Iter, Nothing, Ok, Option, Result, Some
 
 type Entry = tuple[str, str]
 

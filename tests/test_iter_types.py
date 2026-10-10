@@ -1,7 +1,7 @@
 from collections.abc import Iterable, Iterator
 from typing import Never, assert_type
 
-from kamo import Err, Iter, Nothing, NothingType, Ok, Option, Result, Some
+from kamokamo import Err, Iter, Nothing, NothingType, Ok, Option, Result, Some
 
 
 def test_public_types() -> None:
@@ -96,7 +96,7 @@ def test_public_types() -> None:
 
 
 def test_lookahead_and_state_types() -> None:
-    from kamo import Peekable
+    from kamokamo import Peekable
 
     values = Iter([1, 2]).peekable()
     assert_type(values, Peekable[int])

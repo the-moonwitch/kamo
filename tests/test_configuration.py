@@ -2,7 +2,7 @@ from io import StringIO
 from typing import assert_type
 
 from examples.configuration import Entry, parse_entry, read_section
-from kamo import Err, Iter, Nothing, Ok, Option, Result, Some
+from kamokamo import Err, Iter, Nothing, Ok, Option, Result, Some
 
 
 def test_configuration_sections_and_source_ownership() -> None:

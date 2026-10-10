@@ -5,7 +5,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from kamo import Iter, Nothing, Peekable, Some
+from kamokamo import Iter, Nothing, Peekable, Some
 
 
 def test_lookahead_is_lazy_shared_and_retains_wrappers() -> None:
@@ -161,7 +161,7 @@ def test_lookahead_matches_a_sequence_cursor(
 
 
 def test_integer_tokenizer_retains_delimiters_and_expected_failures() -> None:
-    from kamo import Err, Ok, Result
+    from kamokamo import Err, Ok, Result
 
     def integer(characters: Peekable[str]) -> Result[int, str]:
         first = characters.next_if(str.isdecimal).ok_or("expected an integer")

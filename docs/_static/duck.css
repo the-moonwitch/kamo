@@ -1,12 +1,12 @@
 :root {
-    --kamo-pond: #275c4b;
-    --kamo-paper: #fffdf7;
-    --kamo-ink: #293c34;
+    --kamokamo-pond: #275c4b;
+    --kamokamo-paper: #fffdf7;
+    --kamokamo-ink: #293c34;
 }
 
 .wy-side-nav-search,
 .wy-nav-top {
-    background: var(--kamo-pond);
+    background: var(--kamokamo-pond);
 }
 
 .wy-nav-side {
@@ -18,7 +18,7 @@
 }
 
 .wy-nav-content {
-    background: var(--kamo-paper);
+    background: var(--kamokamo-paper);
 }
 
 .wy-side-nav-search a img.logo {
@@ -29,11 +29,11 @@
 
 .rst-content h1,
 .rst-content h2 {
-    color: var(--kamo-ink);
+    color: var(--kamokamo-ink);
 }
 
 .rst-content a {
-    color: var(--kamo-pond);
+    color: var(--kamokamo-pond);
 }
 
 .rst-content code.literal {

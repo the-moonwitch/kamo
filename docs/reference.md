@@ -2,17 +2,17 @@
 
 a field guide to the duck: each operation and exactly what it promises.
 
-import the public vocabulary from `kamo`:
+import the public vocabulary from `kamokamo`:
 
 ```python
-from kamo import Err, Iter, Nothing, NothingType, Ok, Option, Peekable
-from kamo import Result, Some, from_optional
+from kamokamo import Err, Iter, Nothing, NothingType, Ok, Option, Peekable
+from kamokamo import Result, Some, from_optional
 ```
 
 `T`, `E`, `U`, and `F` below describe payload types. return types describe a
 union-typed receiver; a known variant often has a more precise return type.
 
-`kamo.__version__` is the installed distribution's version string, loaded and
+`kamokamo.__version__` is the installed distribution's version string, loaded and
 cached on first access. ordinary API imports avoid loading distribution
 metadata.
 
@@ -221,7 +221,7 @@ Python references replace Rust borrowing; wrappers keep payload mutability.
 mutation, unchecked access, and type-directed Default operations are absent.
 Result callbacks represent early failure; this API does not add ControlFlow.
 
-Rust's map_while leaves behavior after the first None unspecified. kamo's
+Rust's map_while leaves behavior after the first None unspecified. kamokamo's
 map_while guarantees permanent exhaustion. wrapper iteration is a fresh
 zero-or-one iterator; Iter pipelines are one-shot and share their cursor.
 

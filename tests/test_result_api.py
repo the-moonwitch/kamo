@@ -5,7 +5,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from kamo import Err, Nothing, NothingType, Ok, Option, Result, Some
+from kamokamo import Err, Nothing, NothingType, Ok, Option, Result, Some
 
 
 def test_predicates_and_option_conversion() -> None:

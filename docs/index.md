@@ -1,6 +1,6 @@
-# kamo · かも
+# kamokamo · かもかも
 
-```{image} _static/kamo-duck.png
+```{image} _static/kamokamo-duck.png
 :width: 144
 :alt: a duck with a lambda wing and a question-mark tail
 ```

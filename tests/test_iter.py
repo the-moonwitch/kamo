@@ -7,7 +7,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from kamo import Err, Iter, Nothing, Ok, Option, Result, Some
+from kamokamo import Err, Iter, Nothing, Ok, Option, Result, Some
 
 
 def test_pipeline_is_lazy_and_stops_without_overreading() -> None:

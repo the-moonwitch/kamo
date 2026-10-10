@@ -353,4 +353,4 @@ _nothing_pair = (Nothing, Nothing)
 
 # the variants must exist before Result imports Option; methods resolve this
 # module only when called, without importing constructors on every conversion.
-from kamo import result as _result  # noqa: E402
+from kamokamo import result as _result  # noqa: E402

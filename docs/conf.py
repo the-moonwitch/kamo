@@ -2,9 +2,9 @@
 
 from importlib.metadata import version as _version
 
-project = "kamo"
+project = "kamokamo"
 author = "samhain"
-release = _version("kamo")
+release = _version("kamokamo")
 version = release
 
 extensions = ["myst_parser", "sphinx_rtd_theme"]
@@ -12,8 +12,8 @@ source_suffix = {".md": "markdown"}
 myst_heading_anchors = 2
 nitpicky = True
 html_theme = "sphinx_rtd_theme"
-html_logo = "_static/kamo-duck.png"
-html_favicon = "_static/kamo-duck.png"
+html_logo = "_static/kamokamo-duck.png"
+html_favicon = "_static/kamokamo-duck.png"
 html_static_path = ["_static"]
 html_css_files = ["duck.css"]
 html_show_copyright = False

@@ -1,4 +1,4 @@
-# developing kamo
+# developing kamokamo
 
 even a small duck deserves a tidy pond.
 
@@ -54,7 +54,7 @@ Markdown through MyST and uses the Read the Docs theme. the landing page
 includes the README, and the configuration example includes its Python source.
 
 the live docs are at
-[kamo-py.readthedocs.io](https://kamo-py.readthedocs.io/en/latest/).
+[kamokamo on Read the Docs](https://kamo-py.readthedocs.io/en/latest/).
 `.readthedocs.yaml` selects Python 3.14, the uv docs group, and `docs/conf.py`.
 warnings fail both the local build and the hosted build. Read the Docs calls
 the default branch `latest`; it currently follows `codex/scaffold`. see the
@@ -66,7 +66,7 @@ for how branches, tags, and documentation versions fit together.
 use the tools directly, with a workload that represents the actual caller:
 
 ```sh
-mise run bench -- --fast -s 'from kamo import Some; x = Some(42)' 'x.map(str)'
+mise run bench -- --fast -s 'from kamokamo import Some; x = Some(42)' 'x.map(str)'
 mise run profile -- path/to/workload.py
 ```
 

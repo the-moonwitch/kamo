@@ -392,7 +392,7 @@ wheels = [
 ]
 
 [[package]]
-name = "kamo"
+name = "kamokamo"
 version = "0.1.0"
 source = { editable = "." }
 

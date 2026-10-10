@@ -1,6 +1,6 @@
-# kamo · かも
+# kamokamo · かもかも
 
-<img src="docs/_static/kamo-duck.png" width="144"
+<img src="docs/_static/kamokamo-duck.png" width="144"
      alt="a duck with a lambda wing and a question-mark tail">
 
 <!-- introduction -->
@@ -21,11 +21,11 @@ pure Python, precise types, and no runtime dependencies.
 install from the repository with uv:
 
 ```sh
-uv add 'kamo @ git+https://github.com/the-moonwitch/kamo.git'
+uv add 'kamokamo @ git+https://github.com/the-moonwitch/kamokamo.git'
 ```
 
 ```python
-from kamo import Err, Iter, Nothing, Ok, Option, Result, Some
+from kamokamo import Err, Iter, Nothing, Ok, Option, Result, Some
 
 
 def half_even(value: int) -> Option[int]:

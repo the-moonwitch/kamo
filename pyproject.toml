@@ -1,5 +1,5 @@
 [project]
-name = "kamo"
+name = "kamokamo"
 version = "0.1.0"
 description = "typed functional vocabulary for Python"
 readme = "README.md"
@@ -40,7 +40,7 @@ addopts = "--strict-config --strict-markers"
 filterwarnings = ["error"]
 
 [tool.coverage.run]
-source = ["kamo"]
+source = ["kamokamo"]
 branch = true
 relative_files = true
 

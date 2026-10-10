@@ -19,7 +19,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from kamo import Nothing, Option, Some, from_optional
+from kamokamo import Nothing, Option, Some, from_optional
 
 
 @pytest.mark.parametrize("value", [None, False, 0, "", []])
@@ -226,13 +226,15 @@ def test_pickle(protocol: int) -> None:
 
 
 def test_legacy_pickle_state() -> None:
-    # protocol 4 records produced before the specialized state hooks.
+    # protocol 4 list-state records with the current module name.
     present = (
-        b"\x80\x04\x95&\x00\x00\x00\x00\x00\x00\x00\x8c\x0bkamo.option"
+        b"\x80\x04\x95*\x00\x00\x00\x00\x00\x00\x00"
+        b"\x8c\x0fkamokamo.option"
         b"\x94\x8c\x04Some\x94\x93\x94)\x81\x94]\x94]\x94(K\x01Neab."
     )
     absent = (
-        b'\x80\x04\x95"\x00\x00\x00\x00\x00\x00\x00\x8c\x0bkamo.option'
+        b"\x80\x04\x95&\x00\x00\x00\x00\x00\x00\x00"
+        b"\x8c\x0fkamokamo.option"
         b"\x94\x8c\x08_Nothing\x94\x93\x94)\x81\x94]\x94b."
     )
     assert loads(present) == Some([1, None])

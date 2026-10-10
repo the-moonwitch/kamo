@@ -2,9 +2,9 @@
 
 from typing import TYPE_CHECKING
 
-from kamo.iter import Iter, Peekable
-from kamo.option import Nothing, NothingType, Option, Some, from_optional
-from kamo.result import Err, Ok, Result
+from kamokamo.iter import Iter, Peekable
+from kamokamo.option import Nothing, NothingType, Option, Some, from_optional
+from kamokamo.result import Err, Ok, Result
 
 __version__: str
 
@@ -17,7 +17,7 @@ if not TYPE_CHECKING:
             )
         from importlib.metadata import version
 
-        value = version("kamo")
+        value = version("kamokamo")
         globals()[name] = value
         return value
 

@@ -17,7 +17,7 @@ from typing import (
 
 import pytest
 
-from kamo import Err, Ok, Result
+from kamokamo import Err, Ok, Result
 
 
 @pytest.mark.parametrize("payload", [None, False, 0, "", []])
@@ -201,16 +201,17 @@ def test_pickle_variants_and_cycles(protocol: int) -> None:
 
 
 def test_pickle_loads_previous_list_state() -> None:
+    # protocol 4 list-state records with the current module name.
     fixtures = (
         (
-            b"\x80\x04\x95\x1e\x00\x00\x00\x00\x00\x00\x00"
-            b"\x8c\x0bkamo.result\x94\x8c\x02Ok\x94\x93\x94)\x81"
+            b'\x80\x04\x95"\x00\x00\x00\x00\x00\x00\x00'
+            b"\x8c\x0fkamokamo.result\x94\x8c\x02Ok\x94\x93\x94)\x81"
             b"\x94]\x94Nab.",
             Ok(None),
         ),
         (
-            b"\x80\x04\x95'\x00\x00\x00\x00\x00\x00\x00"
-            b"\x8c\x0bkamo.result\x94\x8c\x03Err\x94\x93\x94)\x81"
+            b"\x80\x04\x95+\x00\x00\x00\x00\x00\x00\x00"
+            b"\x8c\x0fkamokamo.result\x94\x8c\x03Err\x94\x93\x94)\x81"
             b"\x94]\x94\x8c\x06failed\x94ab.",
             Err("failed"),
         ),

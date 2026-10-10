@@ -6,8 +6,8 @@ from itertools import chain, dropwhile, islice, takewhile
 from operator import length_hint
 from typing import Generic, Never, TypeVar, final, overload
 
-from kamo.option import Nothing, NothingType, Option, Some
-from kamo.result import Err, Ok, Result
+from kamokamo.option import Nothing, NothingType, Option, Some
+from kamokamo.result import Err, Ok, Result
 
 __all__ = ["Iter", "Peekable"]
 

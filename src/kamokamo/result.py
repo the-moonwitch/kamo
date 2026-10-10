@@ -18,7 +18,7 @@ from typing import (
     overload,
 )
 
-from kamo.option import Nothing, NothingType, Option, Some
+from kamokamo.option import Nothing, NothingType, Option, Some
 
 __all__ = ["Err", "Ok", "Result"]
 

@@ -1,1 +1,1 @@
-"""small examples using kamo's public vocabulary."""
+"""small examples using kamokamo's public vocabulary."""

@@ -1,6 +1,6 @@
-# using kamo
+# using kamokamo
 
-welcome to the pond. kamo distinguishes a missing value, an expected failure,
+welcome to the pond. kamokamo distinguishes a missing value, an expected failure,
 and an exhausted iterator. its wrappers are immutable; their payloads keep
 their own mutability. Python 3.14 or newer is required.
 
@@ -12,7 +12,7 @@ our maybe: a duck in the pond, or no duck at all.
 shared `Nothing` value for absence. presence is independent of truthiness:
 
 ```python
-from kamo import Nothing, Option, Some, from_optional
+from kamokamo import Nothing, Option, Some, from_optional
 
 assert Some(None).is_some
 assert bool(Some(False))
@@ -29,7 +29,7 @@ matters.
 returns an Option. callbacks are skipped on absence.
 
 ```python
-from kamo import Nothing, Option, Some
+from kamokamo import Nothing, Option, Some
 
 
 def half_even(value: int) -> Option[int]:
@@ -57,7 +57,7 @@ or a structured domain value. turn exceptions into Err at the boundary that
 knows which failures are expected:
 
 ```python
-from kamo import Err, Ok, Result
+from kamokamo import Err, Ok, Result
 
 
 def parse_port(text: str) -> Result[int, str]:
@@ -88,7 +88,7 @@ variant consistently in BasedPyright, mypy, and Pyright/Pylance:
 ```python
 from typing import assert_type
 
-from kamo import Err, Nothing, NothingType, Ok, Option, Result, Some
+from kamokamo import Err, Nothing, NothingType, Ok, Option, Result, Some
 
 
 def describe_option(value: Option[int]) -> str:
@@ -132,7 +132,7 @@ or `err()` when selecting one side of a Result as an Option. `transpose`
 exchanges the order of the two wrappers:
 
 ```python
-from kamo import Err, Nothing, Ok, Some
+from kamokamo import Err, Nothing, Ok, Some
 
 assert Some(None).ok_or("missing") == Ok(None)
 assert Nothing.ok_or_else(lambda: "missing") == Err("missing")
@@ -154,7 +154,7 @@ for an Option. Iter is an iterable; `next(iter(values))` retrieves a raw item.
 Peekable, introduced below, is also a Python iterator.
 
 ```python
-from kamo import Iter, Some
+from kamokamo import Iter, Some
 
 values = Iter(range(8))
 prefix = values.map(lambda value: value + 1).filter(
@@ -181,7 +181,7 @@ permanently. `map_while` also stays exhausted permanently.
 after that, the remaining source is available to the caller:
 
 ```python
-from kamo import Err, Iter, Ok, Result
+from kamokamo import Err, Iter, Ok, Result
 
 ports = Iter(["8080", "bad", "443"]).map(parse_port)
 assert ports.collect_result() == Err("invalid port: 'bad'")
@@ -204,7 +204,7 @@ Some, and a rejected `next_if` leaves that item available. derived adapters,
 Python iteration, and inherited consumers all use the same buffer:
 
 ```python
-from kamo import Iter, Nothing, Some
+from kamokamo import Iter, Nothing, Some
 
 characters = Iter("12+34").peekable()
 assert characters.next_if(str.isdecimal) == Some("1")
@@ -233,7 +233,7 @@ where the `examples` package is available.
 from io import StringIO
 
 from examples.configuration import read_section
-from kamo import Iter
+from kamokamo import Iter
 
 with StringIO("port=8080\nbroken\n\nnext=yes\n") as source:
     lines = Iter(source)
@@ -255,7 +255,7 @@ use `partition` when both groups of original items are needed. it preserves
 order and calls the predicate once per input:
 
 ```python
-from kamo import Iter
+from kamokamo import Iter
 
 assert Iter(range(6)).partition(lambda value: value % 2 == 0) == (
     [0, 2, 4],
